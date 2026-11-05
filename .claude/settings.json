@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git clone https://github.com/patch-gg/pixelfx:*)",
+      "Bash(node tools/render.mjs:*)",
+      "Bash(node tools/list.mjs:*)",
+      "Bash(node tools/new.mjs:*)",
+      "Bash(node tools/check.mjs:*)",
+      "Bash(node tools/act.mjs:*)"
+    ]
+  }
+}
