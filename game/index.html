@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#07060d">
+  <title>AETHER HEART · 에테르 하트</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div id="stage">
+    <canvas id="view" width="480" height="270"></canvas>
+    <div id="ui"></div>
+    <div id="touch" hidden>
+      <div id="stick"><div id="knob"></div></div>
+      <div id="buttons">
+        <button class="tbtn" data-act="ult" id="b-ult"><span class="cd"></span><b>궁</b></button>
+        <button class="tbtn" data-act="s2" id="b-s2"><span class="cd"></span><b>2</b></button>
+        <button class="tbtn" data-act="s1" id="b-s1"><span class="cd"></span><b>1</b></button>
+        <button class="tbtn small" data-act="dash" id="b-dash"><span class="cd"></span><b>회피</b></button>
+        <button class="tbtn big" data-act="attack" id="b-atk"><b>공격</b></button>
+      </div>
+    </div>
+  </div>
+  <div id="rotate"><div>📱↻</div><p>가로로 돌려서 플레이해 주세요</p></div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

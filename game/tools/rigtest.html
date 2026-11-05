@@ -1,0 +1,14 @@
+<!doctype html><html><body style="margin:0;background:#000">
+<canvas id="c" width="240" height="80" style="width:960px;height:320px;image-rendering:pixelated"></canvas>
+<script type="module">
+import { createFrame, clearFrame, composite, painterFor, hex } from "../src/px.js";
+import { drawRig, drawShadow } from "../src/rig/rig.js";
+const f = createFrame(240, 80), p = painterFor(f);
+const poses = [
+  {}, { aN: 1.2, aF: -0.5, lN: 0.5, lF: -0.5, lean: 0.15 }, { aN: 2.6, aF: 0.4, lean: -0.2, head: -0.2 },
+  { aN: -0.9, aF: 1.0, lN: -0.4, lF: 0.4, crouch: 3, lean: 0.3 }, { aN: 0.7, aF: 0.7, z: 6, lN: 0.2, lF: -0.2 },
+];
+poses.forEach((pose, i) => { const x = 24 + i * 46; drawShadow(p, x, 70, 16, pose.z||0); drawRig(p, { x, y: 70, pose, flip: i===4 }); });
+const ctx = document.getElementById("c").getContext("2d"), img = ctx.createImageData(240, 80);
+composite(f, img.data, hex("#2c2a3a")); ctx.putImageData(img, 0, 0); window.done = true;
+</script></body></html>
