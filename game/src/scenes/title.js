@@ -1,4 +1,5 @@
 // Title screen: aurora sky, the logo dropping in letter by letter, spirits orbiting the core gem.
+import { applyJuice } from "../game/juice.js";
 import { hex, mix, rand, noise2 } from "../px.js";
 import { W, H } from "../core/screen.js";
 import { World } from "../game/world.js";
@@ -163,6 +164,8 @@ export class TitleScene {
         <label class="row"><input type="checkbox" class="fs" ${S.settings.fullscreen !== false ? "checked" : ""}> 자동 전체화면</label>
         <label class="row"><input type="checkbox" class="mute" ${S.settings.mute ? "checked" : ""}> 소리 끄기</label>
         <label class="row"><input type="checkbox" class="mus" ${S.settings.musicOff ? "checked" : ""}> 배경음악 끄기</label>
+        <label class="row"><input type="checkbox" class="hstop" ${S.settings.hitStop !== false ? "checked" : ""}> 타격 정지 (히트스톱)</label>
+        <label class="row"><input type="checkbox" class="lessflash" ${S.settings.lessFlash ? "checked" : ""}> 번쩍임 줄이기</label>
         <label class="row"><input type="checkbox" class="auto" ${S.settings.autoAttack ? "checked" : ""}> 평타 자동 사용</label>
         <label class="row">화면 흔들림 <input type="range" class="shake" min="0" max="1" step="0.25" value="${S.settings.shake}"></label>
         ${auth.loggedIn ? '<button class="btn pwc">비밀번호 변경</button>' : ""}
@@ -172,6 +175,8 @@ export class TitleScene {
     ov.querySelector(".fs").onchange = (e) => { S.settings.fullscreen = e.target.checked; setAutoFullscreen(e.target.checked); if (e.target.checked) enterFullscreen(); save(S); };
     ov.querySelector(".mute").onchange = (e) => { S.settings.mute = e.target.checked; setMuted(S.settings.mute); save(S); };
     ov.querySelector(".mus").onchange = (e) => { S.settings.musicOff = e.target.checked; setMusicOff(S.settings.musicOff); save(S); };
+    ov.querySelector(".hstop").onchange = (e) => { S.settings.hitStop = e.target.checked; applyJuice(S.settings); save(S); };
+    ov.querySelector(".lessflash").onchange = (e) => { S.settings.lessFlash = e.target.checked; applyJuice(S.settings); save(S); };
     ov.querySelector(".auto").onchange = (e) => { S.settings.autoAttack = e.target.checked; save(S); };
     ov.querySelector(".shake").oninput = (e) => { S.settings.shake = +e.target.value; window.SHAKE = S.settings.shake; save(S); };
     ov.querySelector(".wipe").onclick = async () => { if (confirm(auth.loggedIn ? "이 계정의 모든 진행 상황을 지울까요? 서버 저장도 지워져요." : "정말 모든 진행 상황을 지울까요?")) { const f = wipe(); if (auth.loggedIn) { save(f); await auth.flush(); } location.reload(); } };

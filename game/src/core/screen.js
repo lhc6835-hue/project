@@ -55,6 +55,16 @@ export class Screen {
       const k = 1 - this.dim * 0.65;
       for (let i = 0; i < d.length; i += 4) { d[i] *= k; d[i + 1] *= k; d[i + 2] *= k; }
     }
+    if (this.edge > 0.01) {
+      // a red glow creeping in from the screen edges (hurt / danger); the middle of the arena stays clear
+      const E = 34, w = this.img.width, h = this.img.height, k0 = Math.min(1, this.edge);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const dd = Math.min(x, y, w - 1 - x, h - 1 - y);
+        if (dd >= E) { x = w - 1 - E; continue; }
+        const k = k0 * (1 - dd / E) * (1 - dd / E), i = (y * w + x) * 4;
+        d[i] += (200 - d[i]) * k; d[i + 1] *= 1 - k * 0.8; d[i + 2] *= 1 - k * 0.7;
+      }
+    }
     if (this.flash > 0) {
       const k = Math.min(1, this.flash), [r, g, b] = this.flashColor;
       for (let i = 0; i < d.length; i += 4) { d[i] += (r - d[i]) * k; d[i + 1] += (g - d[i + 1]) * k; d[i + 2] += (b - d[i + 2]) * k; }

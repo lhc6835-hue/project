@@ -43,12 +43,12 @@ function loadBuf(path) {
   return (buffers[path] = fetch(BASE + path).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject())).then((a) => new Promise((ok, no) => ctx.decodeAudioData(a, ok, no))).then((b) => (buffers[path] = b)).catch(() => (buffers[path] = false)));
 }
 function preloadSamples() { for (const [files] of Object.values(SAMPLES)) for (const f of files) loadBuf("sfx/" + f + ".mp3"); }
-function playSample(name) {
+function playSample(name, rate = 1) {
   const S = SAMPLES[name]; if (!S) return false;
   const [files, vol, jit] = S, b = buffers["sfx/" + files[Math.floor(Math.random() * files.length)] + ".mp3"];
   if (!(b instanceof AudioBuffer)) return false;
   const src = ctx.createBufferSource(), g = ctx.createGain();
-  src.buffer = b; src.playbackRate.value = 1 + (Math.random() * 2 - 1) * jit; g.gain.value = vol;
+  src.buffer = b; src.playbackRate.value = rate * (1 + (Math.random() * 2 - 1) * jit); g.gain.value = vol;
   src.connect(g).connect(sfxBus); src.start();
   return true;
 }
@@ -121,10 +121,10 @@ const SOUNDS = {
   door: () => { tone("sine", 120, 60, 0.4, 0.3); burst(0.3, 300, 1, 0.3); },
 };
 
-export function sfx(name) {
+export function sfx(name, o) {
   if (!ctx || muted) return;
   const now = performance.now();
   if (last[name] && now - last[name] < 45) return; // don't stack the same sound in one frame
   last[name] = now;
-  try { const ok = playSample(name); if (!ok || LAYER[name]) SOUNDS[name]?.(); } catch { /* audio is best effort */ }
+  try { const ok = playSample(name, o?.rate ?? 1); if (!ok || LAYER[name]) SOUNDS[name]?.(); } catch { /* audio is best effort */ }
 }

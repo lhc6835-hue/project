@@ -1,4 +1,5 @@
 // Boot: load effects and fonts, then run scenes on a fixed-ish timestep.
+import { applyJuice } from "./game/juice.js";
 import { loadFx } from "./px.js";
 import { Screen } from "./core/screen.js";
 import { Input } from "./core/input.js";
@@ -28,7 +29,7 @@ export function go(name, args) {
   game.input.showTouch(false);
   game.scene = new S(game, args);
   const st = game.save?.settings;
-  if (st) { setMuted(!!st.mute); setMusicOff(!!st.musicOff); }
+  if (st) { setMuted(!!st.mute); setMusicOff(!!st.musicOff); applyJuice(st); }
   const track = { title: "title", select: "garden", garden: "garden", gacha: "garden", absorb: "garden" }[name];
   if (track) music(track);
   game.scene.enter?.();

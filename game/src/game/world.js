@@ -1,6 +1,7 @@
 // The battlefield: entities, live effects, projectiles, timed areas, statuses, damage and hit-stop.
 // Ground plane: x across, y depth (down the screen). Heights (z) lift things off the floor.
 
+import { holdFrames, CRIT_STOP, CRIT_SHAKE } from "./juice.js";
 import { FX, createFx, fit, toHex, hex, mix, Rng, clamp } from "../px.js";
 import { ELEMENTS, affinity, STAGE_FX } from "../data/elements.js";
 import { sfx } from "../core/audio.js";
@@ -204,7 +205,8 @@ export class World {
     if (h.up && !tgt.heavy && !tgt.flying) tgt.vz = Math.max(tgt.vz, h.up * 1.6);
     if (h.st) tgt.applyStatus?.(h.st, src);
     tgt.onHurt?.(dmg, src, h);
-    if (h.stop) this.stop = Math.max(this.stop, h.stop);
+    if (h.stop) holdFrames(this, h.stop);
+    if (crit && tgt.team === 1) { holdFrames(this, CRIT_STOP); this.emit({ shake: CRIT_SHAKE }); }
     // numbers and sparks
     const nz = (tgt.height ?? 30) + 4;
     if (crit) this.fx("ui/crit-number", { x: tgt.x, y: tgt.y, z: nz, opts: { text: dmg + "!", label: "CRIT" }, top: true });

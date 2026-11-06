@@ -1,4 +1,5 @@
 // The player: a blocky puppet with a spirit absorbed into its chest. Stage decides moves, poses and looks.
+import { HURT_SHAKE } from "./juice.js";
 import { hex, mix, fit, toHex, clamp } from "../px.js";
 import { Actor } from "./actor.js";
 import { drawRig, makeSkin, lerpPose, anchor, SKIN } from "../rig/rig.js";
@@ -332,7 +333,7 @@ export class Hero extends Actor {
     if (this.def.crown) for (let i = -1; i <= 1; i++) { p.put(x + i * 3, y - 8, hex("#ffd84a")); p.add(x + i * 3, y - 8, hex("#ffd84a"), 0.8); }
   }
 
-  onHurt(dmg, src) { this.each("hurt", dmg, src); this.iframes = Math.max(this.iframes, 0.35); this.anim.push({ lean: -0.4, head: -0.35, x: -2.5, sx: -0.08, sy: 0.06, aF: 0.6, aN: 0.4 }); }
+  onHurt(dmg, src) { this.each("hurt", dmg, src); this.world?.emit({ shake: HURT_SHAKE, hurtEdge: true }); this.iframes = Math.max(this.iframes, 0.35); this.anim.push({ lean: -0.4, head: -0.35, x: -2.5, sx: -0.08, sy: 0.06, aF: 0.6, aN: 0.4 }); }
   die() {
     if (this.dead) return;
     this.dead = true; this.hp = 0; this.act = null; this.clearStatusFx();

@@ -1,4 +1,5 @@
 // A dungeon run: 10 floors of waves, a card after each floor, bosses on 5 and 10.
+import { JUICE, holdFrames, KILL_STOP, ELITE_KILL_STOP, ELITE_KILL_SHAKE, HURT_EDGE_TIME, HURT_EDGE_K, LOW_HP, LOW_HP_EDGE_K, LOW_HP_PULSE_HZ, STREAK_WINDOW, STREAK_STEP, STREAK_MAX, LAST_KILL_SLOW, LAST_KILL_SHAKE, LAST_KILL_FLASH } from "../game/juice.js";
 import { hex, clamp } from "../px.js";
 import { W, H } from "../core/screen.js";
 import { World } from "../game/world.js";
@@ -144,7 +145,8 @@ export class RunScene {
     const w = this.world, scr = this.g.screen;
     for (const ev of w.events) {
       if (ev.shake) scr.shake(ev.shake, 0.12 + ev.shake * 0.03);
-      if (ev.flash) { scr.flash = Math.max(scr.flash, ev.flash); scr.flashColor = [255, 255, 255]; }
+      if (ev.flash) { scr.flash = Math.max(scr.flash, ev.flash * JUICE.flashK); scr.flashColor = [255, 255, 255]; }
+      if (ev.hurtEdge) this.hurtT = HURT_EDGE_TIME;
       if (ev.dim) { this.dimT = ev.dim; }
       if (ev.cutin) this.cutin(ev.cutin);
       if (ev.banner) this.banner(ev.banner, ev.color, ev.small);
@@ -159,7 +161,15 @@ export class RunScene {
 
   onKill(e) {
     if (e.team !== 1) return;
-    const h = this.hero;
+    const h = this.hero, w = this.world;
+    // feel: every kill lands; the one that clears the floor slows time for a beat
+    holdFrames(w, e.elite ? ELITE_KILL_STOP : KILL_STOP);
+    if (e.elite) w.emit({ shake: ELITE_KILL_SHAKE });
+    const left = w.enemies.filter((x) => x !== e && !x.dead && x.team === 1).length + w.timers.length;
+    if (!left && this.state === "fight" && this.wave >= this.waves && !this.isBossFloor) {
+      this.slowT = Math.max(this.slowT ?? 0, LAST_KILL_SLOW);
+      w.emit({ shake: LAST_KILL_SHAKE, flash: LAST_KILL_FLASH });
+    }
     if (this.mods.killHeal) h.heal(h.maxHp * this.mods.killHeal);
     const base = (e.D?.gold ?? 20) * (e.elite ? 3 : 1);
     const ess = Math.round(base * (1 + this.floor * 0.18) * (1 + (this.depth - 1) * 0.6) * (1 + (h.stats.loot ?? 0)));
@@ -190,7 +200,7 @@ export class RunScene {
       return;
     }
     this.state = "dead"; this.endT = 1.8;
-    this.g.screen.flash = 0.6; this.g.screen.flashColor = [180, 20, 30];
+    this.g.screen.flash = 0.6 * JUICE.flashK; this.g.screen.flashColor = [180, 20, 30];
   }
 
   // ------------------------------------------------------------ loop
@@ -211,6 +221,11 @@ export class RunScene {
     } else h.input = { x: 0, y: 0 };
     // ultimate dims the world for a moment
     if (this.dimT > 0) { this.dimT -= dt; this.g.screen.dim = Math.min(1, this.dimT * 3); } else this.g.screen.dim = Math.max(0, this.g.screen.dim - dt * 4);
+    this.runT = (this.runT ?? 0) + dt;
+    // the red screen edge: a short burst when hurt, a slow pulse while in danger
+    this.hurtT = Math.max(0, (this.hurtT ?? 0) - dt);
+    const low = !h.dead && h.hp / h.maxHp < LOW_HP ? LOW_HP_EDGE_K * (0.6 + 0.4 * Math.sin(this.runT * Math.PI * 2 * LOW_HP_PULSE_HZ)) : 0;
+    this.g.screen.edge = Math.max(low, (this.hurtT / HURT_EDGE_TIME) * HURT_EDGE_K) * JUICE.flashK;
     let wdt = dt;
     if (this.slowT > 0) { this.slowT -= dt; wdt = dt * 0.35; if (this.slowT <= 0) this.letterbox(false); }
     w.update(wdt);
@@ -247,8 +262,12 @@ export class RunScene {
         o.x += (dx / d) * sp * dt; o.y += (dy / d) * sp * dt; o.z = 0;
         if (d < 8) {
           o.done = true;
-          if (o.kind === "gem") { this.loot.gems += o.val; sfx("pick"); this.world.fx("pickups/collect-burst", { x: h.x, y: h.y, z: 16, light: 0.6 }); }
-          else { this.loot.essence += o.val; sfx("pick"); }
+          // a streak of pickups climbs in pitch
+          const now = this.runT ?? 0;
+          this.streak = now - (this.lastPick ?? -9) < STREAK_WINDOW ? (this.streak ?? 0) + 1 : 0; this.lastPick = now;
+          const rate = 1 + Math.min(STREAK_MAX, this.streak * STREAK_STEP);
+          if (o.kind === "gem") { this.loot.gems += o.val; sfx("pick", { rate }); this.world.fx("pickups/collect-burst", { x: h.x, y: h.y, z: 16, light: 0.6 }); }
+          else { this.loot.essence += o.val; sfx("pick", { rate }); }
         }
       }
     }
@@ -273,7 +292,7 @@ export class RunScene {
     this.hud = el("div", { class: "hud pass" }, `
       <div class="hud-top">
         <div class="hud-hp"><div class="hud-name"><b style="color:${E.css}">${this.spirit.nick || def.name}</b> <span class="dim">Lv.${this.spirit.lv} · ${STAGES[this.spirit.stage - 1].name}</span></div>
-          <div class="bar hpbar"><i></i><span></span></div></div>
+          <div class="bar hpbar"><b class="chip"></b><i></i><span></span></div></div>
         <div class="hud-floor"><b class="fl"></b><span class="dim wv"></span></div>
         <div class="hud-loot"><span class="ess"></span><span class="gem"></span></div>
       </div>
@@ -291,7 +310,11 @@ export class RunScene {
   updateHud(rebuild) {
     const h = this.hero; if (!h || !this.hud) return;
     const q = (s) => this.hud.querySelector(s);
-    q(".hpbar i").style.width = (clamp(h.hp / h.maxHp) * 100).toFixed(1) + "%";
+    const hpw = (clamp(h.hp / h.maxHp) * 100).toFixed(1) + "%";
+    q(".hpbar i").style.width = hpw;
+    // the lost chunk lingers in white, then drains after it (a heal jumps straight up)
+    const chip = q(".hpbar .chip"), was = parseFloat(chip.style.width || "100");
+    if (parseFloat(hpw) > was + 0.05) { chip.style.transition = "none"; chip.style.width = hpw; chip.dataset.to = hpw; } else if (chip.dataset.to !== hpw) { chip.dataset.to = hpw; chip.style.transition = ""; chip.style.width = hpw; }
     q(".hpbar i").style.background = h.hp / h.maxHp < 0.3 ? "#e8405a" : "#3ec466";
     q(".hpbar span").textContent = `${Math.ceil(h.hp)} / ${Math.round(h.maxHp)}`;
     q(".fl").textContent = `${this.floor}F`;
@@ -467,7 +490,7 @@ export class RunScene {
     }
   }
 
-  exit() { this.g.screen.dim = 0; }
+  exit() { this.g.screen.dim = 0; this.g.screen.edge = 0; }
 }
 
 export default { run: RunScene };
