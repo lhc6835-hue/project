@@ -58,7 +58,7 @@ export function muffleMusic(on) { if (muffle) muffle.frequency.setTargetAtTime(o
 const SAMPLES = {
   hit: [["hit0", "hit1", "hit2", "hit3"], 0.55, 0.08], crit: [["crit0", "crit1", "crit2"], 0.75, 0.05],
   hurt: [["hurt0", "hurt1"], 0.7, 0.06], boom: [["boom0", "boom1", "boom2"], 0.65, 0.06],
-  zap: [["zap0", "zap1"], 0.35, 0.08], water: [["water0", "water1"], 0.45, 0.1], swing: [["slice0", "slice1"], 0.32, 0.12],
+  zap: [["thunder0", "thunder1", "thunder2"], 0.42, 0.1], water: [["water0", "water1"], 0.45, 0.1], swing: [["slice0", "slice1"], 0.32, 0.12],
   pick: [["pick0", "pick1"], 0.35, 0.04], ui: [["ui0", "ui1"], 0.4, 0.03], ok: [["ok0"], 0.45, 0],
   level: [["level0"], 0.45, 0], absorb: [["absorb0"], 0.5, 0], summon: [["summon0"], 0.45, 0],
   legend: [["j_treasure"], 0.55, 0], die: [["die0"], 0.5, 0], door: [["door0"], 0.5, 0.05], quake: [["quake0"], 0.6, 0.05],

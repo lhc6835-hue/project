@@ -18,7 +18,8 @@ The authors are thanked here anyway. Files were trimmed to mono MP3 and loudness
 |---|---|---|---|
 | hit*, crit*, hurt* | Impact Sounds | Kenney | https://kenney.nl/assets/impact-sounds |
 | boom*, water*, absorb0, quake0 | Sci-Fi Sounds | Kenney | https://kenney.nl/assets/sci-fi-sounds |
-| zap*, pick*, level0, summon0, die0 | Digital Audio | Kenney | https://kenney.nl/assets/digital-audio |
+| pick*, level0, summon0, die0 (zap* no longer used) | Digital Audio | Kenney | https://kenney.nl/assets/digital-audio |
+| thunder* (mixed from explosion_crunch, low_frequency_explosion and impact_glass_light) | Sci-Fi Sounds + Impact Sounds | Kenney | https://kenney.nl/assets |
 | ui*, ok0 | Interface Sounds | Kenney | https://kenney.nl/assets/interface-sounds |
 | slice*, draw0, door0 | RPG Audio | Kenney | https://kenney.nl/assets/rpg-audio |
 | j_* (jingles) | Homebrew VGM (SNES) | Beatscribe | https://github.com/Beatscribe/homebrew_vgm |

@@ -33,11 +33,14 @@ class Boss extends Actor {
   }
   get hero() { return this.world.hero; }
   /** Kick the body: sx/sy are the scale it is thrown toward (e.g. 1.12, 0.86 for a heavy landing). */
-  squash(sx, sy, k = 1) { this.jvx += (sx - 1) * 22 * k; this.jvy += (sy - 1) * 22 * k; }
+  squash(sx, sy, k = 1) { this.jvx += (sx - 1) * 7 * k; this.jvy += (sy - 1) * 7 * k; }
   jelly(dt) {
-    const K = 190, Z = 0.32, D = 2 * Math.sqrt(K) * Z, breath = this.state === "dying" ? 0 : Math.sin(this.t * 2.1) * 0.018;
+    const K = 190, Z = 0.4, D = 2 * Math.sqrt(K) * Z, breath = this.state === "dying" ? 0 : Math.sin(this.t * 2.1) * 0.012;
     this.jvx += ((1 - breath * 0.5 - this.jx) * K - this.jvx * D) * dt; this.jx += this.jvx * dt;
     this.jvy += ((1 + breath - this.jy) * K - this.jvy * D) * dt; this.jy += this.jvy * dt;
+    // never further than ±10%: a boss should wobble, not flatten
+    if (this.jx < 0.9 || this.jx > 1.1) { this.jx = clamp(this.jx, 0.9, 1.1); this.jvx *= -0.3; }
+    if (this.jy < 0.9 || this.jy > 1.1) { this.jy = clamp(this.jy, 0.9, 1.1); this.jvy *= -0.3; }
     // keep the volume roughly constant: a squash widens, a stretch narrows
   }
   /** Where the squash is anchored (feet for walkers; overridden by flyers). */
