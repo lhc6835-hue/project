@@ -1,0 +1,70 @@
+{
+  "skill": "juice-principles",
+  "_format": "skill-creator evals.json plus evergreen fields (kind, decoy, evidence, baseline); extra fields are ignored by skill-creator's runner. Rules: protocol/TESTING.md.",
+  "evals": [
+    {
+      "id": "trigger-1",
+      "kind": "trigger",
+      "prompt": "What is hit-stop and why does it make hits feel heavier?",
+      "expectations": [
+        "the juice-principles skill is invoked"
+      ],
+      "runs": 3
+    },
+    {
+      "id": "trigger-2",
+      "kind": "trigger",
+      "prompt": "how much screen shake is too much?",
+      "expectations": [
+        "the juice-principles skill is invoked"
+      ],
+      "runs": 3
+    },
+    {
+      "id": "decoy-1",
+      "kind": "trigger",
+      "decoy": true,
+      "prompt": "Scan my Godot project and tell me where to add juice.",
+      "expectations": [
+        "juice-principles is not the entry point; juice-scan is invoked (it may load the principles references)"
+      ],
+      "runs": 3
+    },
+    {
+      "id": "decoy-2",
+      "kind": "trigger",
+      "decoy": true,
+      "prompt": "Explain the difference between TCP and UDP for multiplayer games.",
+      "expectations": [
+        "juice-principles is not invoked"
+      ],
+      "runs": 3
+    },
+    {
+      "id": "action-1",
+      "kind": "action",
+      "prompt": "Give me starting numbers for squash and stretch on a jump landing, with the reasoning.",
+      "expectations": [
+        "the skill read references/principles.md, proven by the tool call",
+        "the reply cites P-03 and gives a 1.2-1.4 scale range and a recovery time"
+      ],
+      "evidence": {
+        "type": "trace",
+        "tool": "Read|view|Get-Content",
+        "input_match": "principles\\.md"
+      },
+      "runs": 3
+    },
+    {
+      "id": "outcome-1",
+      "kind": "outcome",
+      "prompt": "Is it OK to flash the whole screen white every time the player gets hit by an automatic weapon?",
+      "files": [],
+      "expectations": [
+        "the reply names the 3-flashes-per-second limit (WCAG 2.3.1) and suggests a toggle",
+        "the reply cites restraint (P-11, P-15 or P-18) and suggests a smaller, local flash instead"
+      ],
+      "runs": 3
+    }
+  ]
+}

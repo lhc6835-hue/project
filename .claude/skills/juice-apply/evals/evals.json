@@ -1,0 +1,80 @@
+{
+  "skill": "juice-apply",
+  "_format": "skill-creator evals.json plus evergreen fields (kind, decoy, evidence, baseline); extra fields are ignored by skill-creator's runner. Rules: protocol/TESTING.md.",
+  "evals": [
+    {
+      "id": "trigger-1",
+      "kind": "trigger",
+      "prompt": "Apply S-01 from the juice report.",
+      "expectations": [
+        "the juice-apply skill is invoked"
+      ],
+      "runs": 3
+    },
+    {
+      "id": "trigger-2",
+      "kind": "trigger",
+      "prompt": "add coyote time and a jump buffer to my player",
+      "expectations": [
+        "the juice-apply skill is invoked"
+      ],
+      "runs": 3
+    },
+    {
+      "id": "decoy-1",
+      "kind": "trigger",
+      "decoy": true,
+      "prompt": "What would make my game feel juicier? Just give me ideas, do not change anything.",
+      "expectations": [
+        "juice-apply is not invoked (juice-scan or juice-principles owns ideas)"
+      ],
+      "runs": 3
+    },
+    {
+      "id": "decoy-2",
+      "kind": "trigger",
+      "decoy": true,
+      "prompt": "Add a new enemy type that shoots homing missiles.",
+      "expectations": [
+        "juice-apply is not invoked (new mechanic, not feedback)"
+      ],
+      "runs": 3
+    },
+    {
+      "id": "action-godot-hitstop",
+      "kind": "action",
+      "prompt": "In a scratch copy of tests/fixtures/godot-platformer, add hit-stop and screen shake to take_damage, with a way to turn shake off.",
+      "files": [
+        "tests/fixtures/godot-platformer"
+      ],
+      "expectations": [
+        "scripts/player.gd in the copy gains a hit-stop gated by a setting and named constants",
+        "a JuiceSettings (or equivalent) with a shake scale or reduce-motion flag exists",
+        "juice-changes.md exists in the copy with a revert note",
+        "the scanner re-run lists timing or camera feedback in take_damage"
+      ],
+      "evidence": {
+        "type": "file",
+        "path": "<scratch>/godot-platformer/juice-changes.md",
+        "contains": [
+          "take_damage"
+        ]
+      },
+      "runs": 3
+    },
+    {
+      "id": "outcome-rules-unchanged",
+      "kind": "outcome",
+      "prompt": "Add hit-stop and pitch variation to Enemy.TakeDamage in a scratch copy of tests/fixtures/unity-brawler.",
+      "files": [
+        "tests/fixtures/unity-brawler"
+      ],
+      "expectations": [
+        "health -= damage and Die() behave the same with toggles off (diff shows no change to rule lines)",
+        "Time.timeScale is restored after the stop (WaitForSecondsRealtime or unscaled time)",
+        "pitch is randomized within roughly +-10%"
+      ],
+      "runs": 3
+    }
+  ]
+}

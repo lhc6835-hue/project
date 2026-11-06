@@ -1,0 +1,135 @@
+{
+  "skill": "juice-scan",
+  "_format": "skill-creator evals.json plus evergreen fields (kind, decoy, evidence, baseline); extra fields are ignored by skill-creator's runner. Rules: protocol/TESTING.md.",
+  "evals": [
+    {
+      "id": "trigger-1",
+      "kind": "trigger",
+      "prompt": "Make my game feel better.",
+      "expectations": [
+        "the juice-scan skill is invoked"
+      ],
+      "runs": 3
+    },
+    {
+      "id": "trigger-2",
+      "kind": "trigger",
+      "prompt": "add juice to this",
+      "expectations": [
+        "the juice-scan skill is invoked"
+      ],
+      "runs": 3
+    },
+    {
+      "id": "trigger-3",
+      "kind": "trigger",
+      "prompt": "Why does combat feel flat in my game? Take a look at the code.",
+      "expectations": [
+        "the juice-scan skill is invoked"
+      ],
+      "runs": 3
+    },
+    {
+      "id": "decoy-1",
+      "kind": "trigger",
+      "decoy": true,
+      "prompt": "My player falls through the floor when moving fast, can you fix the collision?",
+      "expectations": [
+        "the juice-scan skill is not invoked (a physics bug, not feel)"
+      ],
+      "runs": 3
+    },
+    {
+      "id": "decoy-2",
+      "kind": "trigger",
+      "decoy": true,
+      "prompt": "Make this orange juice recipe less sweet.",
+      "expectations": [
+        "the juice-scan skill is not invoked (not about games)"
+      ],
+      "runs": 3
+    },
+    {
+      "id": "decoy-3",
+      "kind": "trigger",
+      "decoy": true,
+      "prompt": "What is hit-stop and why does it make hits feel heavier?",
+      "expectations": [
+        "juice-scan is not invoked; juice-principles is (theory, no code)"
+      ],
+      "runs": 3
+    },
+    {
+      "id": "action-godot",
+      "kind": "action",
+      "prompt": "Audit tests/fixtures/godot-platformer for game feel and write the report.",
+      "files": [
+        "tests/fixtures/godot-platformer"
+      ],
+      "expectations": [
+        "the scanner ran on the fixture, proven by the tool call",
+        "tests/fixtures/godot-platformer/juice-report.md exists and names scripts/player.gd with jump and take_damage, and scripts/coin.gd with collect",
+        "every file:function named in the report exists in the fixture"
+      ],
+      "evidence": {
+        "type": "trace",
+        "tool": "Bash|PowerShell",
+        "input_match": "juice_scan\\.py",
+        "or": {
+          "type": "file",
+          "path": "tests/fixtures/godot-platformer/juice-report.md",
+          "contains": [
+            "player.gd",
+            "take_damage",
+            "coin.gd",
+            "collect"
+          ]
+        }
+      },
+      "baseline": "2026-10-26: without the skill a fresh session greps and reads files ad hoc, writes suggestions with no principle IDs, and misses the coyote-time and hit-stop findings (subagent proxy run, see TESTS.md).",
+      "runs": 3
+    },
+    {
+      "id": "action-roblox",
+      "kind": "action",
+      "prompt": "Do a juice pass on tests/fixtures/roblox-obby: what should I add and where?",
+      "files": [
+        "tests/fixtures/roblox-obby"
+      ],
+      "expectations": [
+        "the scanner ran on the fixture",
+        "tests/fixtures/roblox-obby/juice-report.md names Coins.server.luau collectCoin and Controls.client.luau onJumpRequest",
+        "the report says pickup feedback must go to the client through a RemoteEvent"
+      ],
+      "evidence": {
+        "type": "trace",
+        "tool": "Bash|PowerShell",
+        "input_match": "juice_scan\\.py",
+        "or": {
+          "type": "file",
+          "path": "tests/fixtures/roblox-obby/juice-report.md",
+          "contains": [
+            "collectCoin",
+            "onJumpRequest",
+            "RemoteEvent"
+          ]
+        }
+      },
+      "runs": 3
+    },
+    {
+      "id": "outcome-unity-overjuice",
+      "kind": "outcome",
+      "prompt": "Review tests/fixtures/unity-brawler for game feel, including anything that is too much.",
+      "files": [
+        "tests/fixtures/unity-brawler"
+      ],
+      "expectations": [
+        "the report flags CameraShake.Update as constant per-frame shake (over-juice / motion sickness)",
+        "the report flags the missing shake or reduce-motion setting",
+        "the report suggests hit-stop in Enemy.TakeDamage with a duration in seconds or frames"
+      ],
+      "runs": 3
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "evergreen": "1.0",
+  "name": "juice-scan",
+  "kind": "skill",
+  "main": "SKILL.md",
+  "files": {
+    "research": "RESEARCH.md",
+    "changelog": "CHANGELOG.md",
+    "learnings": "LEARNINGS.md",
+    "tests": "TESTS.md"
+  },
+  "protocol": "plugin",
+  "source": null,
+  "topic": "auditing game codebases for juice: engine detection, feel-moment mapping, engine tween/particle/feedback APIs (Unity, Godot, Roblox, Phaser/PixiJS/GSAP, Pygame)",
+  "tier": "moderate",
+  "interval_days": 30,
+  "last_checked": "2026-10-26",
+  "next_due": "2026-11-25",
+  "verify_at_use": false,
+  "volatile_claims": [],
+  "contradiction": null,
+  "events": [],
+  "streak": {
+    "quiet": 0,
+    "pinned_min": 0,
+    "pinned_max": 0,
+    "vau_quiet": 0
+  },
+  "history": [
+    {
+      "date": "2026-10-26",
+      "m": null,
+      "interval_after": 30,
+      "note": "created"
+    }
+  ],
+  "counts": {
+    "learnings": 1,
+    "changes": 1,
+    "research": 0,
+    "tests": 1
+  },
+  "consolidate_every": 25,
+  "tests": {
+    "last_run": "2026-10-26T21:44",
+    "harness": "claude -p 2.1.281 --plugin-dir, stream-json trace (1-4 runs per case)",
+    "env": "dev-machine Windows 11",
+    "cases": 9,
+    "passed": 9,
+    "failed": 0,
+    "failing": [],
+    "last_failure": null,
+    "research_after_days": null
+  }
+}
