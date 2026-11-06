@@ -1,18 +1,32 @@
 // Sound: recorded effects and looping music (CC0 packs, see assets/audio/CREDITS.md), with small synthesized
 // sounds as a fallback while samples load. Silent until the first user gesture unlocks audio.
-let ctx = null, master = null, sfxBus = null, synthBus = null, musicBus = null, muted = false, musicOff = false;
-const last = {};
+// Mix graph: sources → {sfx (+synth), music → duck → muffle} → master → limiter → out.
+// The player's sliders set the sfx and music buses; ducking and muffling live on their own nodes so they
+// never overwrite a setting.
+let ctx = null, master = null, sfxBus = null, synthBus = null, musicBus = null, duckBus = null, muffle = null, limiter = null, muted = false, musicOff = false;
+const last = {}, voices = {};
 const BASE = "assets/audio/";
 const MASTER = 0.9, MUSIC = 0.42;
+let sfxVol = 1, musicVol = 1;              // 0..1 sliders; gain = slider² so the travel sounds even
+const VOICE_CAP = 4;                       // same sound playing at once, at most
+const VOL_JITTER_DB = 1.5;                 // random level per play, ± dB
+const DUCK = { boom: [0.5, 0.5], crit: [0.75, 0.25], hurt: [0.7, 0.35], die: [0.3, 1.4] }; // music level, seconds
+const MUFFLE_HZ = 900;                     // music low-pass while paused or picking a card
+const musicGain = () => (musicOff ? 0 : MUSIC * musicVol * musicVol);
 
 export function unlockAudio() {
   if (ctx) { if (ctx.state === "suspended") ctx.resume(); return; }
   try {
     ctx = new (window.AudioContext || window.webkitAudioContext)();
-    master = ctx.createGain(); master.gain.value = muted ? 0 : MASTER; master.connect(ctx.destination);
-    sfxBus = ctx.createGain(); sfxBus.gain.value = 1; sfxBus.connect(master);
+    // a safety limiter: a pile of hits at once squashes instead of clipping
+    limiter = ctx.createDynamicsCompressor(); limiter.threshold.value = -6; limiter.knee.value = 4; limiter.ratio.value = 12; limiter.attack.value = 0.002; limiter.release.value = 0.15;
+    limiter.connect(ctx.destination);
+    master = ctx.createGain(); master.gain.value = muted ? 0 : MASTER; master.connect(limiter);
+    sfxBus = ctx.createGain(); sfxBus.gain.value = sfxVol * sfxVol; sfxBus.connect(master);
     synthBus = ctx.createGain(); synthBus.gain.value = 0.36; synthBus.connect(sfxBus);
-    musicBus = ctx.createGain(); musicBus.gain.value = musicOff ? 0 : MUSIC; musicBus.connect(master);
+    muffle = ctx.createBiquadFilter(); muffle.type = "lowpass"; muffle.frequency.value = 20000; muffle.connect(master);
+    duckBus = ctx.createGain(); duckBus.gain.value = 1; duckBus.connect(muffle);
+    musicBus = ctx.createGain(); musicBus.gain.value = musicGain(); musicBus.connect(duckBus);
   } catch { ctx = null; return; }
   preloadSamples();
   if (wantTrack) { const n = wantTrack; wantTrack = null; music(n); }
@@ -21,7 +35,23 @@ export function unlockAudio() {
 }
 export function setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : MASTER; }
 export const isMuted = () => muted;
-export function setMusicOff(m) { musicOff = m; if (musicBus) musicBus.gain.setTargetAtTime(m ? 0 : MUSIC, ctx.currentTime, 0.1); }
+export function setMusicOff(m) { musicOff = m; if (musicBus) musicBus.gain.setTargetAtTime(musicGain(), ctx.currentTime, 0.1); }
+/** Volume sliders, 0..1. */
+export function setVolumes(sfx, mus) {
+  sfxVol = sfx ?? 1; musicVol = mus ?? 1;
+  if (!ctx) return;
+  sfxBus.gain.setTargetAtTime(sfxVol * sfxVol, ctx.currentTime, 0.05);
+  musicBus.gain.setTargetAtTime(musicGain(), ctx.currentTime, 0.05);
+}
+/** Dip the music for a moment (impacts, jingles), then let it come back. */
+function duck(level, hold) {
+  if (!duckBus) return;
+  const t = ctx.currentTime;
+  duckBus.gain.cancelScheduledValues(t); duckBus.gain.setTargetAtTime(Math.min(duckBus.gain.value, level), t, 0.02);
+  duckBus.gain.setTargetAtTime(1, t + hold, 0.35);
+}
+/** Muffle the music (pause menu, card choice) or open it up again. */
+export function muffleMusic(on) { if (muffle) muffle.frequency.setTargetAtTime(on ? MUFFLE_HZ : 20000, ctx.currentTime, 0.15); }
 
 // ---- samples -------------------------------------------------------------------------------------------
 // name → [files, volume, pitch jitter]; several files are picked at random so repeats don't sound canned
@@ -47,9 +77,13 @@ function playSample(name, rate = 1) {
   const S = SAMPLES[name]; if (!S) return false;
   const [files, vol, jit] = S, b = buffers["sfx/" + files[Math.floor(Math.random() * files.length)] + ".mp3"];
   if (!(b instanceof AudioBuffer)) return false;
+  if ((voices[name] ?? 0) >= VOICE_CAP) return true;   // already loud enough: drop it
   const src = ctx.createBufferSource(), g = ctx.createGain();
-  src.buffer = b; src.playbackRate.value = rate * (1 + (Math.random() * 2 - 1) * jit); g.gain.value = vol;
+  src.buffer = b; src.playbackRate.value = rate * (1 + (Math.random() * 2 - 1) * jit);
+  g.gain.value = vol * Math.pow(10, ((Math.random() * 2 - 1) * VOL_JITTER_DB) / 20);
   src.connect(g).connect(sfxBus); src.start();
+  voices[name] = (voices[name] ?? 0) + 1; src.onended = () => { voices[name]--; };
+  if (DUCK[name]) duck(...DUCK[name]);
   return true;
 }
 
@@ -78,7 +112,7 @@ export function music(name) {
 /** A one-shot jingle that ducks the music while it plays. */
 export function jingle(name) {
   if (!ctx || muted) return;
-  if (musicBus && !musicOff) { const t = ctx.currentTime; musicBus.gain.setTargetAtTime(MUSIC * 0.25, t, 0.05); musicBus.gain.setTargetAtTime(MUSIC, t + 2.6, 0.4); }
+  duck(0.25, 2.6);
   sfx(name);
 }
 

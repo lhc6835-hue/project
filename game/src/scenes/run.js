@@ -13,7 +13,7 @@ import { ELEMENTS, BASE_ELEMENTS, STAGES } from "../data/elements.js";
 import { SPIRIT, heroStats } from "../data/spirits.js";
 import { drawCards, CARD_GRADE } from "../data/cards.js";
 import { spiritByUid, save } from "../core/save.js";
-import { sfx, music, jingle } from "../core/audio.js";
+import { sfx, music, jingle, muffleMusic } from "../core/audio.js";
 import { el, toast, icon } from "../ui/dom.js";
 
 const FLOORS = 10;
@@ -84,6 +84,7 @@ export class RunScene {
     hero.input = { x: 0, y: 0 };
     hero.onRelease = (a) => this.onRelease(a);
     this.wave = 0;
+    muffleMusic(false);
     const isBoss = this.floor === 5 || this.floor === 10;
     music(isBoss ? null : ["level1", "level2", "level3", "level4", "level5"][(this.floor - 1 + this.depth) % 5]);
     this.boss = null;
@@ -398,6 +399,7 @@ export class RunScene {
   }
 
   showCards() {
+    muffleMusic(true);
     const h = this.hero;
     const elite = this.isBossFloor;
     const cards = drawCards(3, h, this.taken, Math.random, elite);
@@ -442,6 +444,7 @@ export class RunScene {
   togglePause() {
     if (this.state !== "fight") return;
     this.paused = !this.paused;
+    muffleMusic(this.paused);
     const ui = document.getElementById("ui");
     ui.querySelector(".pausemenu")?.remove();
     if (this.paused) {
@@ -491,7 +494,7 @@ export class RunScene {
     }
   }
 
-  exit() { this.g.screen.dim = 0; this.g.screen.edge = 0; }
+  exit() { this.g.screen.dim = 0; this.g.screen.edge = 0; muffleMusic(false); }
 }
 
 export default { run: RunScene };

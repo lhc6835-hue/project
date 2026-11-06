@@ -8,7 +8,7 @@ import { drawSpirit } from "../game/spirit_art.js";
 import { drawRig } from "../rig/rig.js";
 import { idlePose } from "../game/poses.js";
 import { el } from "../ui/dom.js";
-import { sfx, setMuted, isMuted, setMusicOff } from "../core/audio.js";
+import { sfx, setMuted, isMuted, setMusicOff, setVolumes } from "../core/audio.js";
 import { save, wipe, load, useSlot } from "../core/save.js";
 import { auth } from "../core/auth.js";
 import { openSave } from "../core/session.js";
@@ -170,6 +170,8 @@ export class TitleScene {
       <div class="set-group"><b>소리</b>
         ${ck("mute", S.settings.mute, "소리 끄기")}
         ${ck("mus", S.settings.musicOff, "배경음악 끄기")}
+        <label class="set-row"><span>효과음 크기</span><input type="range" class="vsfx" min="0" max="1" step="0.1" value="${S.settings.sfxVol ?? 1}"></label>
+        <label class="set-row"><span>음악 크기</span><input type="range" class="vmus" min="0" max="1" step="0.1" value="${S.settings.musicVol ?? 1}"></label>
       </div>
       <div class="set-group"><b>전투</b>
         ${ck("auto", S.settings.autoAttack, "평타 자동 사용")}
@@ -184,6 +186,9 @@ export class TitleScene {
     ov.querySelector(".fs").onchange = (e) => { S.settings.fullscreen = e.target.checked; setAutoFullscreen(e.target.checked); if (e.target.checked) enterFullscreen(); save(S); };
     ov.querySelector(".mute").onchange = (e) => { S.settings.mute = e.target.checked; setMuted(S.settings.mute); save(S); };
     ov.querySelector(".mus").onchange = (e) => { S.settings.musicOff = e.target.checked; setMusicOff(S.settings.musicOff); save(S); };
+    const vol = () => { S.settings.sfxVol = +ov.querySelector(".vsfx").value; S.settings.musicVol = +ov.querySelector(".vmus").value; setVolumes(S.settings.sfxVol, S.settings.musicVol); save(S); };
+    ov.querySelector(".vsfx").oninput = vol; ov.querySelector(".vsfx").onchange = () => sfx("hit");
+    ov.querySelector(".vmus").oninput = vol;
     ov.querySelector(".hstop").onchange = (e) => { S.settings.hitStop = e.target.checked; applyJuice(S.settings); save(S); };
     ov.querySelector(".lessflash").onchange = (e) => { S.settings.lessFlash = e.target.checked; applyJuice(S.settings); save(S); };
     ov.querySelector(".auto").onchange = (e) => { S.settings.autoAttack = e.target.checked; save(S); };
