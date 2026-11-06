@@ -3,7 +3,8 @@
 //     fist, a hammer arm, a beating crystal heart. Breaks open into magma at half health.
 //   NOCTILE, the Void Witch (floor 10) — a hovering cloak full of stars, a three-eyed porcelain mask, horns,
 //     a halo of stolen elements and two disembodied hands. Opens a vast eye and grows tendril wings.
-import { hex, mix, noise2, rand, clamp } from "../px.js";
+//   VOLTERA, the Storm Roc (floor 5, from the second visit on, in turn with Terragon) — see below.
+import { hex, mix, noise2, rand, clamp, createFrame, clearFrame, painterFor } from "../px.js";
 import { Actor } from "./actor.js";
 import { ELEMENTS, BASE_ELEMENTS } from "../data/elements.js";
 import { DEPTH_K } from "./world.js";
@@ -130,7 +131,7 @@ export class StoneGiant extends Boss {
     this.sk.root.y = this.hipY + 40;
     this.debris = Array.from({ length: 6 }, (_, i) => ({ a: (i / 6) * Math.PI * 2, r: 52 + (i % 3) * 8, y: -70 + (i % 2) * 18, s: 2.5 + (i % 3) }));
     this.fly = []; this.flip = true; this.walkT = 0; this.stepSide = 0;
-    this.moss = Array.from({ length: 4 }, () => new Strand(4, 3, 200, 0.9));
+    this.moss = Array.from({ length: 4 }, () => new Strand(6, 3, 200, 0.9));
   }
   onPhase() {
     const w = this.world;
@@ -340,75 +341,101 @@ export class StoneGiant extends Boss {
   }
 
   // ---- drawing
+  // Terragon is a living mountain: lumpy boulders for limbs, amber rift-light running through organic cracks,
+  // crystal spires and a little forest on its back, moss hanging from its shoulders, a horned skull with
+  // burning eyes. At half health the crust splits and the light turns to magma.
   draw(p) {
     if (this.dead && this.broke) return this.drawDebris(p, 1);
     const K = this.K, f = this.flip ? -1 : 1, hot = this.phase === 2, t = this.t;
     const W = this.sk.solve(this.x, this.y - this.z, f);
     const flash = this.hitFlash > 0 ? hex("#ffffff") : null;
     const R = hot ? ROCK_HOT : ROCK, glowC = hot ? hex("#ff6a2a") : hex("#ffc24a"), core = hot ? MAGMA : CRYS;
-    const pulse = (S(t * (hot ? 8 : 4)) + 1) / 2;
-    const vein = hot ? MAGMA[3 + Math.round(pulse * 2)] : CRYS[2 + Math.round(pulse * 2)], veinDk = hot ? MAGMA[1] : CRYS[1];
-    // cracks: straight chiselled seams in part space that glow
-    const seams = (list) => (u, v) => { for (const [a, b, c, d] of list) { const ex = c - a, ey = d - b, q = clamp(((u - a) * ex + (v - b) * ey) / (ex * ex + ey * ey)), dd = Math.hypot(u - a - ex * q, v - b - ey * q); if (dd < 0.75) return vein; if (dd < 1.5) return veinDk; } return 0; };
-    const mossy = (seed) => (u, v, d, sh) => (!hot && sh > 0.82 && noise2(u * 0.25 + seed, v * 0.25, seed) > 0.45 ? MOSS[Math.min(4, 2 + Math.round(noise2(u, v, seed) * 2))] : 0);
+    const pulse = (S(t * (hot ? 8 : 3.2)) + 1) / 2;
+    const vein = hot ? MAGMA[4 + Math.round(pulse)] : CRYS[3 + Math.round(pulse)], veinDk = hot ? MAGMA[2] : CRYS[1];
+    // rift-light through organic cracks: thin ridges of noise; wider and brighter once it is angry
+    const cracks = (seed, wide = 1) => (u, v, d, sh) => {
+      if (d > -1.2) return 0;
+      const n = Math.abs(noise2(u * 0.11 + seed, v * 0.11 - seed, seed)), w = (hot ? 0.075 : 0.05) * wide;
+      return n < w * 0.45 ? vein : n < w ? veinDk : 0;
+    };
+    const mossy = (seed) => (u, v, d, sh) => (!hot && sh > 0.78 && noise2(u * 0.22 + seed, v * 0.22, seed) > 0.38 ? MOSS[Math.min(4, 2 + Math.round((noise2(u * 0.6, v * 0.6, seed) + 1)))] : 0);
     const both = (...fs) => (u, v, d, sh) => { for (const fn of fs) { const c = fn(u, v, d, sh); if (c) return c; } return 0; };
-    const slab = (hw, hh, r = 3) => (u, v) => sd.box(u, v, hw, hh, r);
-    const limb = (len, w0, w1) => (u, v) => { const k = clamp(v / len); return Math.max(Math.abs(u) - (w0 + (w1 - w0) * k), Math.abs(v - len / 2) - len / 2 - 2); };
-    const O = (extra) => ({ ramp: R, tint: flash, soft: 4, rim: R[R.length - 1], ...extra });
-    const rise = this.state === "intro" ? 0 : 0;
-    // far leg
-    part(p, W.thighF, f, limb(W.thighF.len, 9 * K, 7.5 * K), O({ r: 30 * K }));
-    part(p, W.shinF, f, limb(W.shinF.len, 7 * K, 8.5 * K), O({ r: 30 * K }));
-    part(p, W.shinF, f, slab(10 * K, 4 * K, 2), O({ r: 16 * K, at: 1, off: [5 * K, -2] }));
-    // far arm: the stone hammer
-    part(p, W.shF, f, limb(W.shF.len, 8 * K, 7 * K), O({ r: 34 * K }));
-    part(p, W.foreF, f, limb(W.foreF.len, 6.5 * K, 8 * K), O({ r: 36 * K }));
-    part(p, W.fistF, f, (u, v) => sd.box(u, v - 6 * K, 11 * K, 9 * K, 3), O({ r: 22 * K, paint: (u, v) => (Math.abs(v - 4 * K) < 1.6 ? core[3] : Math.abs(v - 9 * K) < 0.8 ? R[1] : 0) }));
-    // hips
-    part(p, W.spine, f, (u, v) => sd.box(u, v - 3 * K, 18 * K, 10 * K, 6), O({ r: 24 * K }));
-    // the great chest slab, cracked from the crystal heart outward
-    const chestCr = [[2, -6, 12, -18], [2, -6, -6, -20], [2, -6, 14, 2], [12, -18, 18, -24], [-6, -20, -14, -24], [14, 2, 20, 6]].map((q) => q.map((v) => v * K));
-    part(p, W.spine, f, (u, v) => Math.min(sd.box(u, v - 21 * K, 25 * K, 21 * K, 11), sd.box(u - 6 * K, v - 28 * K, 20 * K, 14 * K, 8)), O({ r: 46 * K, at: 0, paint: both((u, v) => seams(chestCr)(u, v - 26 * K), mossy(3)) }));
-    // a point on a bone: along it, and across it (+across = the bone's u side)
+    // a lumpy boulder stretched along a bone
+    const rockLimb = (len, w0, w1, seed) => (u, v) => { const k = clamp(v / len); return sd.rock(u, v - len / 2, w0 + (w1 - w0) * k, len / 2 + 3, seed, 0.16, 9); };
+    const O = (extra) => ({ ramp: R, tint: flash, soft: 5, rim: R[R.length - 1], ...extra });
     const at = (B, along, across) => [B.x + f * (along * Math.sin(B.a) + across * Math.cos(B.a)), B.y + along * Math.cos(B.a) - across * Math.sin(B.a)];
-    // crystals growing out of the back (the spine's +u side)
-    for (const [along, h, tilt] of [[14, 18, 0.35], [21, 26, 0.1], [28, 16, -0.15]]) {
-      const [cx, cy] = at(W.spine, along * K, 22 * K), dir = Math.atan2(cy - (W.spine.y + (W.spine.ey - W.spine.y) * 0.5), cx - (W.spine.x + (W.spine.ex - W.spine.x) * 0.5));
-      sculpt(p, cx, cy, (u, v) => sd.poly(u, v, [[-3.4 * K, 0], [0, -h * K], [3.4 * K, 0], [0, 4 * K]]), { ramp: core, r: (h + 6) * K, rot: -(dir + Math.PI / 2) + tilt * f, tint: flash, soft: 2, glow: [glowC, 0.35] });
+    const crystal = (x, y, h, wdt, rot, k = 1) => sculpt(p, x, y, (u, v) => sd.poly(u, v, [[-wdt * K, 0], [-wdt * 0.4 * K, -h * 0.72 * K], [0, -h * K], [wdt * 0.5 * K, -h * 0.6 * K], [wdt * K, 0], [0, 3 * K]]), { ramp: core, r: (h + 6) * K, rot, tint: flash, soft: 2, glow: [glowC, 0.4 * k], paint: (u, v) => (Math.abs(u + v * 0.08) < 0.6 ? core[core.length - 1] : 0) });
+    // the ground glows under it
+    glow(p, this.x, this.y - 2, 70 * K, glowC, 0.07 + pulse * 0.04);
+    // far leg and far arm (dimmer, behind)
+    const OF = (extra) => O({ ramp: R.map((c) => mix(c, hex("#07060c"), 0.28)), rim: R[R.length - 2], ...extra });
+    part(p, W.thighF, f, rockLimb(W.thighF.len, 9 * K, 8 * K, 2), OF({ r: 30 * K }));
+    part(p, W.shinF, f, rockLimb(W.shinF.len, 8 * K, 10 * K, 3), OF({ r: 30 * K }));
+    part(p, W.shF, f, rockLimb(W.shF.len, 9 * K, 7.5 * K, 4), OF({ r: 34 * K }));
+    part(p, W.foreF, f, rockLimb(W.foreF.len, 7 * K, 9.5 * K, 5), OF({ r: 36 * K, paint: cracks(5) }));
+    part(p, W.fistF, f, (u, v) => sd.rock(u, v - 6 * K, 12 * K, 10 * K, 6, 0.2, 7), OF({ r: 24 * K, paint: cracks(6, 1.4) }));
+    // hips and the great chest: a cliff of stacked boulders
+    part(p, W.spine, f, (u, v) => sd.rock(u, v - 3 * K, 19 * K, 11 * K, 7, 0.18, 8), O({ r: 26 * K, paint: cracks(7) }));
+    part(p, W.spine, f, (u, v) => Math.min(sd.rock(u, v - 21 * K, 26 * K, 22 * K, 8, 0.13, 11), sd.rock(u - 7 * K, v - 31 * K, 20 * K, 15 * K, 9, 0.2, 8), sd.rock(u + 12 * K, v - 12 * K, 13 * K, 11 * K, 10, 0.2, 7)), O({ r: 48 * K, paint: both(cracks(8, 1.2), mossy(3)) }));
+    // a ridge of crystal spires and little pines along the back (the spine's +u side)
+    for (const [along, h, tilt, w2] of [[10, 16, 0.45, 3.2], [17, 28, 0.18, 4.2], [24, 22, -0.05, 3.6], [31, 14, -0.3, 3]]) {
+      const [cx, cy] = at(W.spine, along * K, 21 * K), mid = [W.spine.x + (W.spine.ex - W.spine.x) * 0.5, W.spine.y + (W.spine.ey - W.spine.y) * 0.5];
+      const dir = Math.atan2(cy - mid[1], cx - mid[0]);
+      crystal(cx, cy, h * (hot ? 1.1 : 1), w2, -(dir + Math.PI / 2) + tilt * f, 1);
     }
-    // the heart, set in the front of the chest
-    const [hx, hy] = at(W.spine, 21 * K, -12 * K);
-    glow(p, hx, hy, (26 + pulse * 10) * K, glowC, 0.18 + pulse * 0.12);
-    sculpt(p, hx, hy, (u, v) => sd.poly(u, v, [[0, -9 * K], [6.5 * K, 0], [0, 9 * K], [-6.5 * K, 0]]), { ramp: core, r: 14 * K, tint: flash, glow: [glowC, 0.55], soft: 3 });
+    if (!hot) for (const [along, h] of [[6, 9], [36, 7], [20, 6]]) {
+      const [tx, ty] = at(W.spine, along * K, 25 * K);
+      const pine = hex("#1d4026"), pine2 = hex("#3e7a3c");
+      for (let j = 0; j < h * K; j++) { const wd = Math.round((j / (h * K)) * 3 * K * 0.6) + 1; for (let i = -wd; i <= wd; i++) p.put(Math.round(tx + i), Math.round(ty - h * K + j), i < 0 ? pine2 : pine); }
+      p.put(Math.round(tx), Math.round(ty + 1), hex("#3a2412"));
+    }
+    // the heart: a crystal set in the chest, beating
+    const [hx, hy] = at(W.spine, 21 * K, -13 * K);
+    glow(p, hx, hy, (30 + pulse * 12) * K, glowC, 0.2 + pulse * 0.14);
+    sculpt(p, hx, hy, (u, v) => sd.poly(u, v, [[0, -10 * K], [7 * K, -2 * K], [5 * K, 7 * K], [0, 10 * K], [-5 * K, 7 * K], [-7 * K, -2 * K]]), { ramp: core, r: 15 * K, tint: flash, glow: [glowC, 0.6], soft: 3, paint: (u, v) => (Math.abs(u) < 0.7 && v < 4 * K ? core[core.length - 1] : 0) });
+    for (let i = 0; i < 5; i++) { const an = i / 5 * Math.PI * 2 + t * 0.8; energy(p, hx, hy, hx + C(an) * (12 + pulse * 6) * K, hy + S(an) * (10 + pulse * 5) * K, core[core.length - 2], glowC, 1, 0.12 + pulse * 0.1); }
     // near leg
-    part(p, W.thighN, f, limb(W.thighN.len, 9.5 * K, 8 * K), O({ r: 30 * K }));
-    part(p, W.shinN, f, limb(W.shinN.len, 7.5 * K, 9 * K), O({ r: 30 * K, paint: hot ? seams([[0, 4 * K, 2 * K, 14 * K]]) : 0 }));
-    part(p, W.shinN, f, slab(11 * K, 4.5 * K, 2), O({ r: 16 * K, at: 1, off: [5 * K, -2] }));
-    // near arm: pauldron boulder, forearm, the crystal fist
-    part(p, W.shN, f, limb(W.shN.len, 8 * K, 7 * K), O({ r: 34 * K }));
-    part(p, W.shN, f, (u, v) => sd.box(u, v - 1 * K, 13 * K, 11 * K, 6), O({ r: 26 * K, paint: both(mossy(5), seams([[-8 * K, -6 * K, 2 * K, 4 * K]])) }));
-    for (const [ox, h, a] of [[1, 13, 0.1], [7, 9, 0.5]]) part(p, W.shN, f, (u, v) => sd.poly(u, v, [[-3.2 * K, 0], [0, -h * K], [3.2 * K, 0], [0, 3 * K]]), { ramp: core, r: (h + 4) * K, off: [ox * K, -9 * K], tint: flash, soft: 2, glow: [glowC, 0.3] });
-    part(p, W.foreN, f, limb(W.foreN.len, 7 * K, 9 * K), O({ r: 36 * K, paint: seams([[0, 6 * K, -3 * K, 18 * K]]) }));
-    part(p, W.fistN, f, (u, v) => sd.box(u, v - 5 * K, 10 * K, 8.5 * K, 4), O({ r: 22 * K }));
-    for (const [ox, oy, h] of [[6, 2, 11], [0, 4, 13], [-6, 2, 10]]) part(p, W.fistN, f, (u, v) => sd.poly(u, v, [[-2.4 * K, 0], [0, h * K], [2.4 * K, 0]]), { ramp: core, r: (h + 3) * K, off: [ox * K, oy * K], tint: flash, soft: 2, glow: [glowC, 0.3] });
-    // head: skull block, a heavy brow ridge on top, a jaw below, two burning eyes under the brow
-    part(p, W.head, f, (u, v) => sd.box(u, v - 8 * K, 9.5 * K, 9 * K, 4), O({ r: 20 * K, paint: (u, v) => (v > 13 * K && u < 1 * K && u > -5 * K && (Math.round(v / K) % 3 === 0) ? R[1] : 0) }));
-    part(p, W.head, f, (u, v) => sd.box(u + 5 * K, v - 8 * K, 3.5 * K, 6.5 * K, 2), O({ r: 14 * K }));
-    part(p, W.head, f, (u, v) => sd.box(u - 5.5 * K, v - 9 * K, 2.8 * K, 9 * K, 1.5), O({ r: 14 * K, paint: mossy(9) }));
-    for (const dd of [-2.6, 2.6]) {
-      const [ex, ey] = at(W.head, (11.5 + dd * 0.4) * K, -2.2 * K);
-      const ec = hot ? hex("#ff5030") : hex("#fff6c4");
-      p.put(Math.round(ex), Math.round(ey), ec); p.put(Math.round(ex) + 1, Math.round(ey), ec); p.put(Math.round(ex) - 1, Math.round(ey), hot ? MAGMA[3] : CRYS[3]);
-      glow(p, ex, ey, 6 * K, hot ? hex("#ff5030") : hex("#ffe27a"), 0.5);
+    part(p, W.thighN, f, rockLimb(W.thighN.len, 10 * K, 9 * K, 12), O({ r: 30 * K, paint: mossy(12) }));
+    part(p, W.shinN, f, rockLimb(W.shinN.len, 8.5 * K, 11 * K, 13), O({ r: 30 * K, paint: cracks(13) }));
+    // near arm: a boulder pauldron crowned with crystals and trailing moss, a cracked forearm, a crystal fist
+    part(p, W.shN, f, rockLimb(W.shN.len, 9.5 * K, 8 * K, 14), O({ r: 34 * K }));
+    part(p, W.shN, f, (u, v) => sd.rock(u, v - 1 * K, 15 * K, 12 * K, 15, 0.2, 8), O({ r: 28 * K, paint: both(mossy(5), cracks(15)) }));
+    const [px0, py0] = at(W.shN, 0, 0);
+    for (const [ox, h, a2] of [[-4, 15, -0.25], [3, 11, 0.25], [9, 8, 0.6]]) crystal(px0 + ox * K * f, py0 - 9 * K, h, 2.8, a2 * f, 0.8);
+    if (!hot) this.moss.forEach((m, i) => {
+      const [mx, my] = at(W.shN, (4 + i * 4) * K, (-10 + i * 5) * K);
+      m.update([mx, my], 1 / 60, [S(t * 1.3 + i) * 30, 0]);
+      for (let k = 1; k < m.p.length; k++) energy(p, m.p[k - 1].x, m.p[k - 1].y, m.p[k].x, m.p[k].y, MOSS[3], MOSS[1], 1, 0);
+    });
+    part(p, W.foreN, f, rockLimb(W.foreN.len, 8 * K, 10.5 * K, 16), O({ r: 36 * K, paint: cracks(16, 1.2) }));
+    part(p, W.fistN, f, (u, v) => sd.rock(u, v - 5 * K, 12 * K, 10 * K, 17, 0.2, 7), O({ r: 24 * K, paint: cracks(17, 1.5) }));
+    for (const [ox, oy, h] of [[7, 2, 11], [0, 5, 14], [-7, 2, 10]]) { const [cx, cy] = at(W.fistN, (oy + 9) * K, ox * K); crystal(cx, cy, h, 2.4, W.fistN.wa + Math.PI, 0.7); }
+    // head: a horned skull with a heavy brow and a hanging jaw
+    part(p, W.head, f, (u, v) => Math.min(sd.rock(u, v - 8 * K, 11 * K, 10 * K, 18, 0.14, 8), sd.rock(u + 2 * K, v - 15 * K, 8 * K, 4 * K, 19, 0.2, 6)), O({ r: 22 * K, paint: both(cracks(18), mossy(9)) }));
+    part(p, W.head, f, (u, v) => sd.rock(u - 6 * K, v - 8 * K, 4 * K, 9 * K, 20, 0.2, 6), O({ r: 16 * K }));
+    // two great crystal horns sweeping back over the shoulders
+    for (const [along, across, len, curl] of [[5, 8, 20, 0.9], [3, 5, 15, 0.7]]) {
+      const [cx, cy] = at(W.head, along * K, across * K);
+      const pts = []; for (let i = 0; i <= 8; i++) { const k = i / 8, an = -Math.PI / 2 - k * curl; pts.push([C(an) * k * len * K * 0.6 - k * k * 6 * K, S(an) * k * len * K]); }
+      sculpt(p, cx, cy, (u, v) => { let d = 1e9; for (let i = 1; i < pts.length; i++) { const [ax, ay] = pts[i - 1], [bx, by] = pts[i], ex = bx - ax, ey = by - ay, q = clamp(((u - ax) * ex + (v - ay) * ey) / (ex * ex + ey * ey)); d = Math.min(d, Math.hypot(u - ax - ex * q, v - ay - ey * q) - (3.4 - (i / 8) * 3) * K); } return d; }, { ramp: core, r: (len + 6) * K, flip: f < 0, tint: flash, soft: 2, glow: [glowC, 0.35] });
     }
-    // embers rising off it when angry
-    if (hot) for (let i = 0; i < 12; i++) { const ph = (t * 0.7 + i / 12) % 1; const x = Math.round(this.x + S(i * 2.7 + t) * 46 * K), y = Math.round(this.y - 20 * K - ph * 100 * K); p.put(x, y, MAGMA[ph < 0.5 ? 5 : 3], 1 - ph); p.add(x, y, glowC, 0.5 * (1 - ph)); }
-    // orbiting debris
+    // burning eyes under the brow, each trailing a wisp of light
+    for (const dd of [-2.8, 2.8]) {
+      const [ex, ey] = at(W.head, (11 + dd * 0.4) * K, -3 * K);
+      const ec = hot ? hex("#ff5030") : hex("#fff6c4");
+      for (let i = -1; i <= 1; i++) p.put(Math.round(ex) + i, Math.round(ey), i === 0 ? hex("#ffffff") : ec);
+      glow(p, ex, ey, 7 * K, hot ? hex("#ff5030") : hex("#ffe27a"), 0.55);
+      for (let k = 1; k < 7; k++) p.put(Math.round(ex - f * k * 1.5), Math.round(ey - k * 0.6 + S(t * 6 + k) * 0.6), ec, 1 - k / 7);
+    }
+    // dust and rift sparks rising off it (embers when angry)
+    for (let i = 0; i < (hot ? 16 : 9); i++) { const ph = (t * (hot ? 0.7 : 0.35) + i / 12) % 1; const x = Math.round(this.x + S(i * 2.7 + t * 0.6) * 48 * K), y = Math.round(this.y - 10 * K - ph * 100 * K); p.put(x, y, hot ? MAGMA[ph < 0.5 ? 5 : 3] : CRYS[ph < 0.5 ? 5 : 3], 1 - ph); p.add(x, y, glowC, 0.45 * (1 - ph)); }
+    // orbiting debris, bound by threads of light
     for (const d of this.debris) {
       d.a += (hot ? 2.2 : 1) * 0.016;
       if (S(d.a) <= 0) continue;
       const x = this.x + C(d.a) * d.r * K, y = this.y + d.y * K + S(d.a) * 12;
-      sculpt(p, x, y, (u, v) => sd.rock(u, v, d.s * K, d.s * 0.8 * K, d.r, 0.25, 5), { ramp: R, r: d.s * K + 3, tint: flash });
+      sculpt(p, x, y, (u, v) => sd.rock(u, v, d.s * K, d.s * 0.8 * K, d.r, 0.25, 5), { ramp: R, r: d.s * K + 3, tint: flash, paint: cracks(d.r, 2) });
+      glow(p, x, y, d.s * K * 2, glowC, 0.12);
     }
     this.drawDebris(p, 0);
     if (this.rings) {
@@ -777,3 +804,255 @@ export class VoidCaller extends Boss {
 }
 
 function toHexC(c) { return "#" + [c & 255, (c >> 8) & 255, (c >> 16) & 255].map((v) => v.toString(16).padStart(2, "0")).join(""); }
+
+// ------------------------------------------------------------------------------------------ Voltera
+// VOLTERA, the Storm Roc (floor 5, alternating with Terragon) — a colossal thunderbird of storm feathers
+// veined with lightning, a crest of living bolts, a beak of gold. Calls lightning on marked ground, beats
+// gales across the floor, rains feather blades and dives the length of the room. At half health the storm
+// breaks: the sky strikes on its own and its wings crackle white.
+const STORM = ramp(["#06071a", "#0e1236", "#18205a", "#243284", "#3650b0", "#5a7ed8", "#9ab8f4", "#e0ecff"]);
+const STORM_HOT = ramp(["#0a061a", "#1a0e3a", "#2c1866", "#44289a", "#6844c8", "#9a78ec", "#d0b8ff", "#ffffff"]);
+const BOLT = ramp(["#3a2c08", "#7a5c10", "#c49218", "#f0c83a", "#fff08a", "#fffbe0", "#ffffff"]);
+const BEAK = ramp(["#3a2408", "#6a4410", "#a46e18", "#d8a428", "#ffd84a", "#fff6c0"]);
+
+export class StormRoc extends Boss {
+  constructor(o) {
+    super({ r: 34, height: 110, shadowW: 110, ...o });
+    this.name = "뇌조 볼테라"; this.title = "제5층의 폭풍"; this.el = "wind"; this.speed = 46;
+    this.introLen = 2.6; this.phaseLen = 1.6; this.hover = 160; this.flip = true; this.flapT = 0; this.boltT = 2.5;
+    this.sparks = [];
+  }
+  onPhase() {
+    const w = this.world;
+    w.emit({ banner: "볼테라가 폭풍을 부른다!", color: "#9ab8f4", shake: 7, flash: 0.6 });
+    sfx("zap");
+    w.fx("lightning/thunderclap", { x: this.x, y: this.y, z: this.hover + 40, light: 1, ramp: ELEMENTS.wind.ramp, top: true });
+  }
+  /** Render one missing wing frame (used while the intro and phase change play, so fights never hitch). */
+  warmWings(hot) {
+    this.wingCache = this.wingCache ?? new Map();
+    for (let qf = 0; qf <= 16; qf++) for (const sgn of [-1, 1]) {
+      const key = sgn + "|" + (hot ? 1 : 0) + "|" + qf;
+      if (this.wingCache.has(key)) continue;
+      const F = createFrame(260, 170, sgn > 0 ? -6 : -254, -110); clearFrame(F);
+      this.renderWing(painterFor(F), sgn, -(qf / 8 - 1) * 22, hot, hot ? STORM_HOT : STORM, hex("#fff08a"), hot ? hex("#d0b8ff") : hex("#9ab8f4"));
+      this.wingCache.set(key, F); return;
+    }
+  }
+  update(dt) {
+    if (this.state === "intro") this.warmWings(false);
+    if (this.state === "phase" || (this.state === "intro" && this.introT > 1.2)) this.warmWings(true);
+    const free = this.baseUpdate(dt);
+    // hover height eases toward where the current move wants it
+    const want = this.state === "intro" ? (this.introT < 1.6 ? 160 - this.introT / 1.6 * 120 : 40) : (this.wantHover ?? 40);
+    this.hover += (want - this.hover) * Math.min(1, dt * 4);
+    this.flapT += dt * (this.state === "attack" && this.atk?.name === "gale" ? 2.6 : 1);
+    for (const s of this.sparks) s.t += dt;
+    this.sparks = this.sparks.filter((s) => s.t < s.life);
+    if (Math.random() < dt * (this.phase === 2 ? 14 : 6)) this.sparks.push({ t: 0, life: 0.12 + Math.random() * 0.1, a: Math.random() * Math.PI * 2, r: 20 + Math.random() * 40 });
+    if (!free) return;
+    const h = this.hero, dx = h.x - this.x, dy = h.y - this.y;
+    this.flip = dx < 0;
+    // the storm itself strikes now and then once it is angry
+    if (this.phase === 2) {
+      this.boltT -= dt;
+      if (this.boltT <= 0) { this.boltT = 2.2 + Math.random(); const x = h.x + (Math.random() - 0.5) * 60, y = h.y + (Math.random() - 0.5) * 30; this.strike(x, y, 0.9); }
+    }
+    // keep a wary distance, drifting to the hero's depth
+    const keep = 120, sp = this.phase === 2 ? 1.3 : 1;
+    if (Math.abs(dx) < keep - 20) this.x -= Math.sign(dx) * this.speed * sp * dt;
+    else if (Math.abs(dx) > keep + 40) this.x += Math.sign(dx) * this.speed * sp * dt;
+    this.y += clamp(dy, -1, 1) * this.speed * 0.6 * dt;
+    const A = this.world.arena; this.x = clamp(this.x, A.x0 + 40, A.x1 - 40);
+    this.cool -= dt;
+    if (this.cool > 0 || !this.canAct) return;
+    const order = this.phase === 2 ? ["thunder", "dive", "feathers", "gale", "thunder", "feathers"] : ["thunder", "feathers", "gale", "dive"];
+    const pick = order[this.step++ % order.length];
+    this["atk" + pick[0].toUpperCase() + pick.slice(1)]();
+  }
+
+  // ---- attacks
+  strike(x, y, t) {
+    const w = this.world;
+    this.mark({ x, y, r: 22, t, fire: () => {
+      w.fx("lightning/lightning-strike", { x, y, light: 1, ramp: ELEMENTS.wind.ramp });
+      this.hitHeroIn(x, y, 24, this.stats.atk * 1.25, 120);
+      w.emit({ shake: 4, flash: 0.12 }); sfx("zap");
+    } });
+  }
+  atkThunder() {
+    const w = this.world, h = this.hero, n = this.phase === 2 ? 6 : 4;
+    sfx("zap");
+    this.start("thunder", (t, dt, A) => {
+      A.k = A.k ?? 0;
+      while (A.k < n && t > 0.35 + A.k * 0.22) {
+        const x = clamp(h.x + (Math.random() - 0.5) * (A.k ? 110 : 10), w.arena.x0 + 12, w.arena.x1 - 12), y = clamp(h.y + (Math.random() - 0.5) * (A.k ? 50 : 6), w.arena.y0, w.arena.y1);
+        this.strike(x, y, 0.85); A.k++;
+      }
+      return t > 0.35 + n * 0.22 + 1;
+    });
+  }
+  atkGale() {
+    const w = this.world, h = this.hero, f = Math.sign(h.x - this.x) || 1, y = h.y, T = 0.9;
+    const x0 = f > 0 ? this.x : w.arena.x0, x1 = f > 0 ? w.arena.x1 : this.x;
+    this.mark({ band: [Math.round(x0), Math.round(x1), 14], y, t: T });
+    this.wantHover = 60;
+    let fired = false;
+    this.start("gale", (t) => {
+      if (t >= T && !fired) {
+        fired = true;
+        this.hitHeroBand(x0, x1, y, 15, this.stats.atk * 0.7, 380);
+        w.fx("nature/tornado", { x: this.x + f * 40, y, light: 0.7, ramp: ELEMENTS.wind.ramp, dur: 0.9, opts: { height: 60 } });
+        for (let i = 0; i < 5; i++) w.after(i * 0.05, () => w.fx("impacts/hit-spark", { x: this.x + f * (60 + i * 40), y: y + (Math.random() - 0.5) * 20, z: 10, light: 0.5 }));
+        w.emit({ shake: 5 }); sfx("dash");
+      }
+      if (t > T + 0.6) { this.wantHover = 40; return true; }
+    }, { T });
+  }
+  atkFeathers() {
+    const w = this.world, volleys = this.phase === 2 ? 2 : 1;
+    this.start("feathers", (t, dt, A) => {
+      A.k = A.k ?? 0;
+      if (A.k < volleys && t > 0.55 + A.k * 0.5) {
+        const h = this.hero, base = Math.atan2(h.y - this.y, h.x - this.x), n = 7;
+        for (let i = 0; i < n; i++) {
+          const ang = base + (i - (n - 1) / 2) * 0.16 + (A.k ? 0.08 : 0);
+          w.projs.push(new EnemyShot({ x: this.x + Math.cos(ang) * 30, y: this.y + Math.sin(ang) * 10, z: 24, ang, speed: 170, src: this, r: 5, life: 2.4, style: "arrow", color: ["#9ab8f4", "#e0ecff"] }));
+        }
+        sfx("swing"); A.k++;
+      }
+      return t > 0.55 + volleys * 0.5 + 0.4;
+    });
+  }
+  atkDive() {
+    const w = this.world, h = this.hero, y = h.y, A0 = w.arena, from = this.x, to = this.x < h.x ? A0.x1 - 50 : A0.x0 + 50;
+    const T = 1.1, x0 = Math.min(from, to), x1 = Math.max(from, to);
+    this.wantHover = 110; sfx("dash");
+    this.mark({ band: [Math.round(x0), Math.round(x1), 12], y, t: T });
+    let hit = false;
+    this.start("dive", (t, dt) => {
+      if (t < T) { this.y += (y - this.y) * Math.min(1, dt * 6); return false; }
+      // swoop: low and fast along the band
+      this.wantHover = 8;
+      const u = clamp((t - T) / 0.45);
+      this.x = from + (to - from) * u; this.flip = to < from;
+      if (!hit && Math.abs(this.hero.x - this.x) < 34) { this.hitHeroBand(this.x - 34, this.x + 34, y, 13, this.stats.atk * 1.4, 260); hit = this.hero.iframes > 0 || hit; }
+      if (u >= 1 && !this.landed) { this.landed = true; w.emit({ shake: 6 }); sfx("boom"); w.fx("impacts/ground-slam", { x: this.x, y, light: 0.8, ramp: ELEMENTS.wind.ramp, dur: 0.6 }); }
+      if (t > T + 1.0) { this.landed = false; this.wantHover = 40; return true; }
+      return false;
+    }, { T });
+  }
+
+  dying(dt) {
+    const w = this.world, u = this.dieT;
+    this.wantHover = 40 - u * 25;
+    if (Math.floor(u * 6) !== Math.floor((u - dt) * 6) && u < 1.6) { w.fx("lightning/zap-hit", { x: this.x + (Math.random() - 0.5) * 80, y: this.y, z: this.hover + 20 + Math.random() * 60, light: 1, top: true }); w.emit({ shake: 3 }); sfx("zap"); }
+    if (u >= 1.7 && !this.broke) { this.broke = true; w.fx("lightning/thunderclap", { x: this.x, y: this.y, z: 30, light: 1.2, ramp: ELEMENTS.wind.ramp }); this.finishDeath(); }
+  }
+
+  /** One wing, drawn around (0, 0) into its own frame; the shape for a given flap never changes. */
+  renderWing(p, sgn, fy, hot, RP, boltC, glowC) {
+    const t = 0, bx = 0, by = 0, flash = null;
+    const cracks = (seed, k = 1) => (u, v, d) => (d < -1 && Math.abs(noise2(u * 0.12 + seed, v * 0.12, seed)) < (hot ? 0.055 : 0.035) * k ? BOLT[hot ? 5 : 4] : 0);
+      const lead = [[12, -16], [40, -40 + fy * 0.6], [70, -48 + fy], [96, -36 + fy * 1.25], [114, -14 + fy * 1.45]];
+      // primaries and secondaries: pointed feather tips with notches between, longest toward the wingtip
+      const trail = [], NF = 11;
+      for (let i = 0; i < NF; i++) {
+        const k = i / (NF - 1), x = 110 - k * 94, base = lerp(-6 + fy * 1.35, 4, k) + Math.sin(k * Math.PI) * 18 + 4, len = lerp(14, 6, k);
+        const sway = 0;
+        trail.push([x + 3, base + len + sway], [x - 4, base + 2]);
+      }
+      trail.push([16, 6]);
+      const poly = [...lead, ...trail].map(([x, y]) => [sgn * x, y]);
+      const leadPts = lead.map(([x, y]) => [sgn * x, y]);
+      const dLead = (u, v) => { let d = 1e9; for (let i = 1; i < leadPts.length; i++) { const [ax, ay] = leadPts[i - 1], [bx2, by2] = leadPts[i], ex = bx2 - ax, ey = by2 - ay, q = clamp(((u - ax) * ex + (v - ay) * ey) / (ex * ex + ey * ey)); d = Math.min(d, Math.hypot(u - ax - ex * q, v - ay - ey * q)); } return d; };
+      // feather lines fan from the arm toward each tip; coverts along the arm are bright and scaled
+      const paint = (u, v, d, sh) => {
+        const x = u * sgn;
+        if (d > -1.2) return 0;
+        const dl = dLead(u, v);
+        if (dl < 10) return ((Math.round(x * 0.35) + Math.round(v * 0.35)) & 1) && dl > 2 ? RP[5] : RP[6];
+        const ang = Math.atan2(v + 30, x - 20), stripe = Math.abs(((ang * 11) % 1 + 1) % 1 - 0.5);
+        if (stripe < 0.08) return RP[1];
+        if (d > -5 && x > 40 && stripe < (hot ? 0.3 : 0.2)) return boltC;       // lightning at the feather tips
+        return cracks(sgn * 7, 1.2)(u, v, d);
+      };
+    // the shape is centred on the wing, not the body, so the sculpt box stays small
+    const cx = sgn * 62, cy = -6;
+    sculpt(p, cx, cy, (u, v) => sd.poly(u + cx, v + cy, poly), { ramp: RP, r: 64, soft: 8, rim: RP[7], paint: (u, v, d, sh) => paint(u + cx, v + cy, d, sh) });
+  }
+
+  // ---- drawing
+  // Seen from the front like a heraldic eagle: wings spread wide and beating, the head turned in profile
+  // toward the hero, a fan of tail plumes below. Lightning runs in the feather cracks and arcs between the
+  // wingtips.
+  draw(p) {
+    if (this.dead && this.broke) return;
+    const f = this.flip ? -1 : 1, t = this.t, hot = this.phase === 2, flash = this.hitFlash > 0 ? hex("#ffffff") : null;
+    const RP = hot ? STORM_HOT : STORM, glowC = hot ? hex("#d0b8ff") : hex("#9ab8f4"), boltC = hex("#fff08a");
+    const atk = this.atk, a = this.state === "attack" ? atk?.name : this.state;
+    const bob = S(t * 2) * 3, bx = this.x, by = this.y - this.hover - 46 + bob;
+    // wing beat: a slow heavy stroke at rest; raised to the sky before a gale; swept back in a dive
+    let flap = S(this.flapT * 2.6);
+    if (a === "gale") { const u = atk.t / atk.T; flap = u < 1 ? 0.4 + 0.6 * ease.out(Math.min(1, u)) : 1 - 2 * ease.out(clamp((atk.t - atk.T) * 4)); }
+    if (a === "dive" && atk.t > atk.T) flap = -0.8;
+    if (a === "intro") flap = S(t * 5);
+    if (a === "thunder" || a === "phase") flap = 0.8 + S(t * 9) * 0.15;
+    const fy = -flap * 22;
+    const cracks = (seed, k = 1) => (u, v, d) => (d < -1 && Math.abs(noise2(u * 0.12 + seed, v * 0.12, seed)) < (hot ? 0.055 : 0.035) * k ? BOLT[hot ? 5 : 4] : 0);
+    glow(p, bx, by, 110, glowC, hot ? 0.13 : 0.09);
+    // a dark storm cloud gathering behind
+    for (let i = 0; i < 9; i++) {
+      const an = i / 9 * Math.PI * 2 + t * 0.2, cx = bx + C(an) * 70, cy = by + 10 + S(an) * 22, r = 18 + (i % 3) * 5;
+      for (let j = -r; j <= r; j++) for (let k = -r; k <= r; k++) { const d = (j * j) / (r * r * 0.5) + (k * k) / (r * r); if (d < 1 && ((j + k + i) & 1)) p.blendPx(Math.round(cx + k), Math.round(cy + j * 0.6), RP[1], 0.35 * (1 - d)); }
+    }
+    // wings: a broad shape per side, leading edge up and out, scalloped primaries along the trailing edge.
+    // They are costly, so each wing is rendered once per flap step (17 steps) and stamped after that.
+    const qf = Math.round((clamp(flap, -1, 1) + 1) * 8), fyq = -(qf / 8 - 1) * 22;
+    for (const sgn of [-1, 1]) {
+      const key = sgn + "|" + (hot ? 1 : 0) + "|" + qf;
+      if (!this.wingCache) this.wingCache = new Map();
+      let F = this.wingCache.get(key);
+      if (!F) { F = createFrame(260, 170, sgn > 0 ? -6 : -254, -110); clearFrame(F); this.renderWing(painterFor(F), sgn, fyq, hot, RP, boltC, glowC); this.wingCache.set(key, F); }
+      stampFrame(p, F, Math.round(bx), Math.round(by), flash);
+      const lead = [[12, -16], [40, -40 + fyq * 0.6], [70, -48 + fyq], [96, -36 + fyq * 1.25], [114, -14 + fyq * 1.45]];
+      for (let i = 1; i < lead.length; i++) energy(p, bx + sgn * lead[i - 1][0], by + lead[i - 1][1] + 3, bx + sgn * lead[i][0], by + lead[i][1] + 3, RP[7], glowC, 1, 0.16);
+    }
+    // arcs leaping between the wingtips when it calls the storm
+    if (a === "thunder" || a === "phase" || hot) {
+      let [x, y] = [bx - 112, by - 14 + fy * 1.45]; const [x1, y1] = [bx + 112, by - 14 + fy * 1.45];
+      if (Math.random() < (hot ? 0.6 : 0.35)) for (let s2 = 1; s2 <= 10; s2++) { const nx = x + (x1 - (bx - 112)) / 10, ny = y1 + S(s2 * 1.3 + t * 20) * 6 - Math.abs(s2 - 5) * -3 - 24; energy(p, x, y, nx, ny, boltC, glowC, 1, 0.45); x = nx; y = ny; }
+    }
+    // tail: a fan of long plumes below
+    for (let i = 0; i < 5; i++) {
+      const ang = Math.PI / 2 + (i - 2) * 0.28 + S(t * 1.4 + i) * 0.05, len = 34 + (2 - Math.abs(i - 2)) * 8, dx = C(ang), dy = S(ang);
+      sculpt(p, bx, by + 14, (u, v) => { const q = (u * dx + v * dy) / len, px = Math.abs(-u * dy + v * dx); return q < 0 ? 9 : q > 1 ? 9 : px - (3 + 2.5 * Math.sin(q * Math.PI)); }, { ramp: RP, r: len + 6, tint: flash, soft: 3, paint: (u, v) => ((u * dx + v * dy) / len > 0.84 ? boltC : 0) });
+    }
+    // body: a deep chest of storm feathers, a pale scaled breast
+    sculpt(p, bx, by, (u, v) => Math.min(sd.ellipse(u, v - 2, 17, 23), sd.ellipse(u, v - 16, 12, 10)), { ramp: RP, r: 30, tint: flash, soft: 7, rim: RP[7], paint: (u, v, d) => (Math.abs(u) < 10 && v > -6 && v < 18 && d < -2 && ((Math.round(u * 0.45 + v * 0.2) + Math.round(v * 0.45)) & 1) ? RP[6] : cracks(3)(u, v, d)) });
+    // golden talons
+    for (const o of [-6, 6]) { const tx = bx + o, ty = by + 22; energy(p, tx, ty, tx, ty + 7, BEAK[4], BEAK[2], 1, 0.1); for (const c of [-2, 0, 2]) p.put(Math.round(tx + c), Math.round(ty + 8), BEAK[5]); }
+    // head in profile toward the hero, with a crest of living bolts
+    const hx = bx + f * 4, hy = by - 30 + (a === "thunder" ? -3 : 0);
+    for (let i = 0; i < 6; i++) { const an = -Math.PI / 2 - f * (0.35 + i * 0.27), L = 16 + i * 3; let x = hx - f * 3, y = hy - 5; for (let s2 = 0; s2 < 4; s2++) { const nx = x + C(an) * L / 4 + (Math.random() - 0.5) * 3, ny = y + S(an) * L / 4 + (Math.random() - 0.5) * 2; energy(p, x, y, nx, ny, boltC, glowC, 1, 0.3); x = nx; y = ny; } }
+    sculpt(p, hx, hy, (u, v) => Math.min(sd.ellipse(u, v, 12, 10.5), sd.ellipse(u + f * 3, v + 8, 9, 7)), { ramp: RP, r: 14, tint: flash, soft: 5, rim: RP[7] });
+    const open = a === "thunder" || a === "phase" || a === "intro" ? 3 : 0.5;
+    sculpt(p, hx + f * 10, hy + 1, (u, v) => Math.min(sd.poly(u, v, [[-3, -4], [9, -1], [12, 3], [7, 1], [-3, 0]]), sd.poly(u, v, [[-3, 1 + open], [8, 3 + open], [-2, 5 + open]])), { ramp: BEAK, r: 14, flip: f < 0, tint: flash, soft: 2 });
+    const ex = hx + f * 3, ey = hy - 2;
+    for (let i = -1; i <= 1; i++) p.put(Math.round(ex) + i, Math.round(ey), i === 0 ? hex("#ffffff") : hex("#fffbe0"));
+    for (let k = 1; k < 9; k++) p.put(Math.round(ex - f * k * 1.6), Math.round(ey - k * 0.45), boltC, 1 - k / 9);
+    glow(p, ex, ey, 10, boltC, 0.5);
+    // sparks crackling around it
+    for (const s2 of this.sparks) { const x0 = bx + C(s2.a) * s2.r * 1.6, y0 = by + S(s2.a) * s2.r * 0.6; energy(p, x0, y0, x0 + (Math.random() - 0.5) * 14, y0 + (Math.random() - 0.5) * 14, boltC, glowC, 1, 0.5 * (1 - s2.t / s2.life)); }
+  }
+}
+
+/** Stamp a pre-rendered frame (with translucency and light) at (x, y); tint turns it into a hit flash. */
+function stampFrame(p, F, x, y, tint) {
+  const W = F.w, H = F.h, X0 = x + F.ox, Y0 = y + F.oy;
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const k = j * W + i, col = F.color[k], lt = F.light[k];
+    if (col) { const al = col >>> 24; if (al >= 250) p.put(X0 + i, Y0 + j, tint ?? col); else p.blendPx(X0 + i, Y0 + j, tint ?? (col | 0xff000000) >>> 0, al / 255); }
+    if (lt) p.add(X0 + i, Y0 + j, lt, 1);
+  }
+}

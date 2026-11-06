@@ -4,9 +4,9 @@
 // ?boss=golem|void&shots=idle:1,slam:0.7,...  each shot renders one cell; phase=2 option
 import { createFrame, clearFrame, composite, painterFor, hex, loadFx } from "../src/px.js";
 import { World } from "../src/game/world.js";
-import { StoneGiant, VoidCaller } from "../src/game/bosses.js";
+import { StoneGiant, VoidCaller, StormRoc } from "../src/game/bosses.js";
 const q = new URLSearchParams(location.search);
-const kind = q.get("boss") ?? "golem", CW = 220, CH = 190, S = +(q.get("s") ?? 3);
+const kind = q.get("boss") ?? "golem", CW = +(q.get("cw") ?? 220), CH = 190, S = +(q.get("s") ?? 3);
 await loadFx(["impacts/ground-slam", "explosions/dirt-explosion", "impacts/blunt-hit", "nature/earth-spike", "explosions/big-explosion", "shadow/dark-explosion", "shadow/grasping-hands", "explosions/implosion", "lightning/zap-hit", "fire/fire-ring"]);
 const shots = (q.get("shots") ?? "idle:1").split(",");
 const cv = document.getElementById("c"); const cols = Math.min(4, shots.length), rows = Math.ceil(shots.length / cols);
@@ -17,7 +17,7 @@ shots.forEach((sh, i) => {
   const w = new World({ x0: -500, x1: 500, y0: 0, y1: 300 });
   const hero = { x: -80, y: 130, z: 0, r: 7, dead: false, iframes: 0, team: 0, height: 34, applyStatus() {}, heal() {} };
   w.hero = hero;
-  const B = kind === "golem" ? StoneGiant : VoidCaller;
+  const B = kind === "golem" ? StoneGiant : kind === "roc" ? StormRoc : VoidCaller;
   const b = new B({ x: 0, y: 130, hp: 1000, atk: 10 });
   w.add(b); b.flip = true;
   if (ph === "2") { b.phase = 2; b.eyeOpen = 1; b.wing = 1; }

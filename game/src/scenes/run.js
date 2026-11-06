@@ -7,7 +7,7 @@ import { World } from "../game/world.js";
 import { Hero } from "../game/hero.js";
 import { Enemy } from "../game/enemies.js";
 import { Hazard } from "../game/hazards.js";
-import { StoneGiant, VoidCaller } from "../game/bosses.js";
+import { StoneGiant, VoidCaller, StormRoc } from "../game/bosses.js";
 import { ARENA, paintRoom, roomDecor, MAPS, NORMAL_MAPS } from "../game/room.js";
 import { ELEMENTS, BASE_ELEMENTS, STAGES } from "../data/elements.js";
 import { SPIRIT, heroStats } from "../data/spirits.js";
@@ -35,6 +35,7 @@ export class RunScene {
     this.themes = this.makeThemes();
     if (args.map) this.themes = this.themes.map(() => args.map);
     this.testPool = args.pool ? args.pool.split("-") : null;
+    this.forceBoss = args.boss ?? null;
     this.loot = { essence: 0, gems: 0, evo: 0, awake: 0 };
     this.mods = { killHeal: 0, dashBuff: false, echo: 0, revive: false };
     this.taken = new Set();
@@ -110,8 +111,10 @@ export class RunScene {
     const w = this.world, A = w.arena, sc = this.scale();
     this.wave++;
     if (this.isBossFloor) {
-      const B = this.floor === 5 ? StoneGiant : VoidCaller;
-      const hpBase = this.floor === 5 ? 900 : 1700, atk = this.floor === 5 ? 16 : 18;
+      // floor 5 is guarded by Terragon the first time, then by Terragon or Voltera
+      const roc = this.floor === 5 && this.S.bossKills.golem > 0 && (this.forceBoss === "roc" || (!this.forceBoss && Math.random() < 0.5));
+      const B = this.floor === 5 ? (roc ? StormRoc : StoneGiant) : VoidCaller;
+      const hpBase = this.floor === 5 ? (roc ? 820 : 900) : 1700, atk = this.floor === 5 ? (roc ? 15 : 16) : 18;
       const b = new B({ x: A.x1 - 110, y: 214, hp: Math.round(hpBase * sc.hp), atk: atk * sc.dmg });
       b.maxHp = b.hp; b.minionScale = sc.hp; b.minionDmg = sc.dmg;
       w.add(b); this.boss = b;
