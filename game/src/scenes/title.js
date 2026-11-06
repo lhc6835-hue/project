@@ -222,10 +222,10 @@ export class TitleScene {
       (Math.sin(an) < 0 ? behind : front).push({ id, x, y, s: Math.sin(an) });
     });
     const show = this.t > 1.6;
-    if (show) for (const s of behind) drawSpirit(p, s.x, s.y, { id: s.id, stage: 1, t: this.t + s.x * 0.01, alpha: 0.7, glow: 0.6 });
+    if (show) for (const s of behind) drawSpirit(p, s.x, s.y, { id: s.id, stage: 1, t: this.t + s.x * 0.01, alpha: 0.7, glow: 0.6, key: "tb" + s.x });
     this.logo.draw(p, ox, oy, this.t);
     if (this.t > this.logo.letters[8].delay + 0.45) drawGem(p, gx, gy + 3, this.t, 5);
-    if (show) for (const s of front) drawSpirit(p, s.x, s.y, { id: s.id, stage: 2, t: this.t + s.x * 0.01 });
+    if (show) for (const s of front) drawSpirit(p, s.x, s.y, { id: s.id, stage: 2, t: this.t + s.x * 0.01, key: "tf" + s.x });
   }
 }
 

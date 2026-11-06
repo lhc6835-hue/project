@@ -125,7 +125,7 @@ export class GachaScene {
     // floating idle spirits around the well
     if (this.phase === "idle") ["agni", "levia", "tempest", "gaia"].forEach((id, i) => {
       const an = this.t * 0.5 + i * 1.57;
-      drawSpirit(p, 240 + Math.cos(an) * 150, 120 + Math.sin(an * 2) * 10 + Math.sin(an) * 14, { id, stage: 3, t: this.t + i, alpha: 0.5, glow: 0.5 });
+      drawSpirit(p, 240 + Math.cos(an) * 150, 120 + Math.sin(an * 2) * 10 + Math.sin(an) * 14, { id, stage: 3, t: this.t + i, alpha: 0.5, glow: 0.5, key: "orbit" + i });
     });
   }
 }

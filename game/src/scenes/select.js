@@ -101,7 +101,7 @@ export class SelectScene {
         else if (Math.abs(x) < 16) p.put(s.x + x, yy, Math.abs(x) > 13 ? hex("#16122a") : side);
       }
       if (on) for (let y = -60; y < 30; y++) for (let x = -14; x <= 14; x++) { const k = (1 - Math.abs(x) / 14) * (1 - (30 - y) / 90); if (k > 0) p.add(s.x + x, s.y + y, rim, 0.09 * k); }
-      drawSpirit(p, s.x, s.y + (on ? -4 + Math.sin(this.t * 4) * 2 : 0), { id: s.id, stage: on ? 2 : 1, t: this.t + i, alpha: this.sel === null || on ? 1 : 0.6, glow: on ? 1.2 : 0.6 });
+      drawSpirit(p, s.x, s.y + 9 + (on ? -4 + Math.sin(this.t * 4) * 2 : 0), { id: s.id, stage: on ? 2 : 1, key: "sel" + i, scale: 1.45, t: this.t + i, alpha: this.sel === null || on ? 1 : 0.6, glow: on ? 1.2 : 0.6 });
     });
   }
 }

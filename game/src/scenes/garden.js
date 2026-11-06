@@ -2,7 +2,7 @@
 import { hex, mix, rand, noise2, fbm } from "../px.js";
 import { W, H } from "../core/screen.js";
 import { World } from "../game/world.js";
-import { drawSpirit } from "../game/spirit_art.js";
+import { drawSpirit, spiritRadius } from "../game/spirit_art.js";
 import { drawRig } from "../rig/rig.js";
 import { idlePose } from "../game/poses.js";
 import { SPIRIT, SPIRITS, GRADES, PASSIVES, MAX_LV, EVOLVE_LV, lvCost, heroStats } from "../data/spirits.js";
@@ -439,15 +439,15 @@ export class GardenScene {
       if (this.anim && this.anim.sp.uid === sp.uid) continue;
       const hop = this.walkerHop(w) ?? (w.wait > 0 || w.hold ? 0 : Math.abs(Math.sin(w.t * 6)) * 2);
       // shadow
-      for (let i = -5; i <= 5; i++) p.blendPx(Math.round(w.x + i), Math.round(w.y + 12), 0xff000000, 0.3);
-      drawSpirit(p, w.x + this.walkerNudge(w), w.y - hop, { id: sp.id, stage: sp.stage, t: w.t, flip: w.flip });
+      { const rr = spiritRadius(sp.stage); for (let i = -rr * 0.7; i <= rr * 0.7; i++) p.blendPx(Math.round(w.x + i), Math.round(w.y + rr + 3), 0xff000000, 0.28); }
+      drawSpirit(p, w.x + this.walkerNudge(w), w.y - hop, { id: sp.id, stage: sp.stage, t: w.t, flip: w.flip, key: "w" + w.uid });
       if (!w.react) this.drawBubble(p, w, sp, hop);
       if (sp.uid === S.active) { const c = hex("#ffd84a"); p.put(Math.round(w.x), Math.round(w.y - 22 - hop), c); p.put(Math.round(w.x) - 1, Math.round(w.y - 23 - hop), c); p.put(Math.round(w.x) + 1, Math.round(w.y - 23 - hop), c); }
     }
     this.drawCareFx(p);
     if (this.anim) {
       const a = this.anim, k = Math.min(1, a.t / 1.9);
-      drawSpirit(p, 240, 180 - k * 10, { id: a.sp.id, stage: a.t < 1.9 ? a.stage - 1 : a.stage, t: this.t, glow: 1 + k * 2, flip: false });
+      drawSpirit(p, 240, 180 - k * 10, { id: a.sp.id, stage: a.t < 1.9 ? a.stage - 1 : a.stage, t: this.t, glow: 1 + k * 2, flip: false, key: "evo" });
     }
   }
 }

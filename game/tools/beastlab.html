@@ -1,0 +1,23 @@
+<!doctype html><html><body style="margin:0;background:#000">
+<canvas id="c" style="image-rendering:pixelated"></canvas>
+<script type="module">
+// ?stage=3&ids=a,b,c&cw=70&ch=64&s=3&t=1.2  — every spirit (or the listed ones) at one stage; stage=all shows 1,2,3 side by side
+import { createFrame, composite, painterFor, hex } from "../src/px.js";
+import { drawSpirit } from "../src/game/spirit_art.js";
+import { SPIRITS, GRADES } from "../src/data/spirits.js";
+const q = new URLSearchParams(location.search), S = +(q.get("s") ?? 3), CW = +(q.get("cw") ?? 72), CH = +(q.get("ch") ?? 64), T = +(q.get("t") ?? 1.2);
+const ids = q.get("ids") ? q.get("ids").split(",") : SPIRITS.map((s) => s.id);
+const stages = q.get("stage") === "all" ? [1, 2, 3] : [+(q.get("stage") ?? 3)];
+const cells = ids.flatMap((id) => stages.map((st) => ({ id, st })));
+const cols = +(q.get("cols") ?? (stages.length === 3 ? 9 : 10)), rows = Math.ceil(cells.length / cols), W = CW * cols, H = CH * rows;
+const f = createFrame(W, H), p = painterFor(f);
+const t0 = performance.now();
+cells.forEach(({ id, st }, i) => { const x = (i % cols) * CW, y = Math.floor(i / cols) * CH;
+  for (let yy = 0; yy < CH; yy++) for (let xx = 0; xx < CW; xx++) f.color[(y + yy) * W + x + xx] = q.get("bg") === "grass" ? hex(((xx + yy) % 7) ? "#1e3a22" : "#24442a") : (((i + Math.floor(i / cols)) % 2) ? hex("#141220") : hex("#1a1726"));
+  p.reset(); drawSpirit(p, x + CW / 2, y + CH / 2, { id, stage: st, t: T + i * 0.37, still: true, direct: q.get("direct") === "1" });
+  p.reset(); p.text(id, x + 2, y + 2, hex(GRADES[SPIRITS.find((s) => s.id === id).grade].css), { font: "mini" });
+});
+document.title = "ms " + Math.round(performance.now() - t0);
+const c = document.getElementById("c"); c.width = W; c.height = H; c.style.width = W * S + "px"; c.style.height = H * S + "px";
+const ctx = c.getContext("2d"), img = ctx.createImageData(W, H); composite(f, img.data, hex("#141220")); ctx.putImageData(img, 0, 0);
+</script></body></html>
