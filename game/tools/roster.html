@@ -1,0 +1,17 @@
+<!doctype html><html><body style="margin:0;background:#000">
+<canvas id="c" style="image-rendering:pixelated"></canvas>
+<script type="module">
+import { createFrame, composite, painterFor, hex } from "../src/px.js";
+import { drawSpirit } from "../src/game/spirit_art.js";
+import { SPIRITS, GRADES } from "../src/data/spirits.js";
+const q = new URLSearchParams(location.search), stage = +(q.get("stage") ?? 2), S = +(q.get("s") ?? 3), CW = 40, CH = 44, cols = 10;
+const list = SPIRITS, rows = Math.ceil(list.length / cols), W = CW * cols, H = CH * rows;
+const f = createFrame(W, H), p = painterFor(f);
+list.forEach((sp, i) => { const x = (i % cols) * CW, y = Math.floor(i / cols) * CH;
+  for (let yy = 0; yy < CH; yy++) for (let xx = 0; xx < CW; xx++) f.color[(y + yy) * W + x + xx] = ((i + Math.floor(i / cols)) % 2) ? hex("#1c1926") : hex("#221e2e");
+  p.reset(); drawSpirit(p, x + CW / 2, y + CH / 2 - 2, { id: sp.id, stage, t: 1.1 + i * 0.37 });
+  p.reset(); p.text(String(sp.grade), x + 2, y + 2, hex(GRADES[sp.grade].css), { font: "mini" });
+});
+const c = document.getElementById("c"); c.width = W; c.height = H; c.style.width = W * S + "px"; c.style.height = H * S + "px";
+const ctx = c.getContext("2d"), img = ctx.createImageData(W, H); composite(f, img.data, hex("#1c1926")); ctx.putImageData(img, 0, 0);
+</script></body></html>

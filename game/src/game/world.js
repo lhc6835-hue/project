@@ -211,7 +211,11 @@ export class World {
       this.fx(stage >= 3 ? "lightning/zap-hit" : "impacts/hit-spark", { x: tgt.x, y: tgt.y + 0.6, z: (tgt.height ?? 30) * 0.45, flip: (tgt.x - fx) < 0, ramp: h.fxRamp, light: STAGE_FX[stage]?.light ?? 0.6 });
     }
     sfx(crit ? "crit" : tgt.team === 0 ? "hurt" : "hit");
-    if (tgt.hp <= 0) tgt.die?.(src);
+    if (!h.trait) src?.onDealt?.(tgt, dmg, crit, h);
+    if (tgt.hp <= 0) {
+      tgt.die?.(src);
+      if (tgt.dead && !tgt._killCounted) { tgt._killCounted = true; src?.onKilled?.(tgt); }
+    }
     return dmg;
   }
 

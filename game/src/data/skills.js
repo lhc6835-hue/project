@@ -9,6 +9,117 @@
 
 export const SKILLS = {
 
+  light: {
+    1: {
+      basic: {
+        name: "빛의 일섬", desc: "빛으로 된 칼날로 앞을 빠르게 벤다.", pose: "slash", windup: 0.1, recover: 0.26,
+        fx: [{ t: -0.1, id: "melee/sword-slash", opts: { radius: 42 } }],
+        hits: [{ t: 0.04, box: [0, 50, 17], dmg: 1.0, stop: 0.05, kb: 60 }],
+      },
+      skills: [{
+        name: "심판", desc: "가장 가까운 적에게 빛의 망치를 내리친다.", pose: "point", windup: 0.15, recover: 0.3, cd: 4,
+        fx: [{ t: 0, id: "holy/smite", at: "aim", dx: 70, dur: 1.6 }],
+        hits: [{ t: 0.7, circ: [30, 70], at: "aim", dmg: 3.0, stop: 0.08, st: { stun: 0.5 } }],
+        cam: [{ t: 0.7, shake: 3, flash: 0.15 }],
+      }],
+    },
+    2: {
+      basic: {
+        name: "성광 회전", desc: "빛을 두르고 회전하며 주위를 벤다.", pose: "spin", windup: 0.1, recover: 0.34,
+        fx: [{ t: 0, id: "melee/spin-slash", opts: { radius: 46 } }],
+        hits: [{ t: 0.05, circ: [46, 0], dmg: 0.65, stop: 0.03 }, { t: 0.17, circ: [48, 0], dmg: 0.85, stop: 0.08, kb: 90 }],
+      },
+      skills: [{
+        name: "치유의 고리", desc: "빛의 고리를 퍼뜨려 적을 태우고 체력을 회복한다.", pose: "raise", windup: 0.2, recover: 0.3, cd: 8,
+        fx: [{ t: 0, id: "holy/heal-aoe", opts: { reach: 100 } }],
+        hits: [{ t: 0.3, circ: [100, 0], dmg: 1.6, kb: 80 }],
+        special: { kind: "heal", t: 0.3, k: 0.25 },
+      }, {
+        name: "신성 방패", desc: "빛의 방패로 2.5초간 모든 피해를 막고, 주변을 밀쳐낸다.", pose: "cast", windup: 0.1, recover: 0.25, cd: 11,
+        fx: [{ t: 0, id: "holy/divine-shield", follow: true, dur: 2.5 }],
+        hits: [{ t: 0.05, circ: [44, 0], dmg: 1.0, kb: 200 }],
+        special: { kind: "guard", t: 0, dur: 2.5 },
+      }],
+    },
+    3: {
+      basic: {
+        name: "천상의 검", desc: "두 팔로 빛의 대검을 내려찍고 깃털을 흩뿌린다.", pose: "cleave", windup: 0.28, recover: 0.42,
+        fx: [{ t: -0.28, id: "melee/heavy-cleave", dur: 0.9 }, { t: 0.02, id: "holy/feather-burst", dx: 40, dy: -16, dur: 1.4 }],
+        hits: [{ t: 0.0, box: [0, 74, 24], dmg: 1.45, stop: 0.1, kb: 130 }, { t: 0.06, circ: [34, 40], dmg: 0.8 }],
+        cam: [{ t: 0, shake: 2 }],
+      },
+      skills: [{
+        name: "빛의 기둥", desc: "하늘에서 거대한 빛의 기둥이 떨어진다.", pose: "raise", windup: 0.2, recover: 0.4, cd: 6,
+        fx: [{ t: 0, id: "holy/holy-pillar", at: "aim", dx: 70 }],
+        ticks: [{ t0: 0.35, t1: 2.2, every: 0.2, circ: [30, 70], at: "aim", dmg: 0.8, st: { stun: 0.2 } }],
+        cam: [{ t: 0.4, shake: 3, flash: 0.2 }],
+      }, {
+        name: "연속 심판", desc: "가까운 적 넷에게 차례로 빛의 망치를 떨어뜨린다.", pose: "point", windup: 0.15, recover: 0.35, cd: 8,
+        special: { kind: "strikes", n: 4, gap: 0.16, delay: 0.7, fx: "holy/smite", r: 28, dmg: 3.2, st: { stun: 0.6 } },
+      }],
+      ult: {
+        name: "천상 강림", desc: "하늘이 열리며 별빛이 전장에 쏟아진다.", pose: "ult", windup: 0.5, recover: 0.5, cd: 26,
+        fx: [{ t: -0.3, id: "holy/sunburst", dur: 1.6, dy: -30, follow: true }],
+        hits: [{ t: 0.05, circ: [90, 0], dmg: 3, kb: 160, stop: 0.1 }],
+        special: { kind: "storm", t: 0.2, life: 4, every: 0.28, fx: "arcane/star-fall", cloud: "holy/halo", r: 40, dmg: 2.6, st: { stun: 0.3 } },
+        cam: [{ t: -0.5, dim: 1 }, { t: 0.05, shake: 5, flash: 0.8 }],
+      },
+    },
+  },
+
+  dark: {
+    1: {
+      basic: {
+        name: "그림자 할퀴기", desc: "그림자 발톱으로 앞을 세 번 할퀸다.", pose: "claw", windup: 0.12, recover: 0.3,
+        fx: [{ t: 0, id: "melee/claw-swipe" }],
+        hits: [{ t: 0.04, box: [2, 46, 16], dmg: 0.42, stop: 0.03 }, { t: 0.08, box: [2, 46, 16], dmg: 0.42, stop: 0.03 }, { t: 0.12, box: [2, 48, 18], dmg: 0.6, stop: 0.07, kb: 60 }],
+      },
+      skills: [{
+        name: "흡혈", desc: "앞의 적에게서 생명력을 빨아들인다.", pose: "cast", windup: 0.15, recover: 0.4, cd: 5,
+        fx: [{ t: -0.15, id: "shadow/life-steal" }],
+        hits: [{ t: 0.02, box: [10, 110, 18], dmg: 2.4, stop: 0.06 }],
+        special: { kind: "heal", t: 1.5, k: 0.12 },
+      }],
+    },
+    2: {
+      basic: {
+        name: "망령의 낫", desc: "그림자 낫을 크게 휘둘러 앞을 쓸어버린다.", pose: "slash", windup: 0.2, recover: 0.4,
+        fx: [{ t: -0.2, id: "melee/scythe-reap", dur: 1.2 }],
+        hits: [{ t: 0.14, box: [0, 70, 22], dmg: 1.4, stop: 0.1, kb: 100 }],
+      },
+      skills: [{
+        name: "속박의 손", desc: "땅에서 그림자 손이 솟아 적을 붙잡는다.", pose: "point", windup: 0.15, recover: 0.3, cd: 7,
+        fx: [{ t: 0, id: "shadow/grasping-hands", at: "aim", dx: 70, dur: 2.2 }],
+        hits: [{ t: 0.4, circ: [44, 70], at: "aim", dmg: 2.0, st: { root: 2.2 } }, { t: 1.2, circ: [44, 70], at: "aim", dmg: 1.2 }],
+      }, {
+        name: "공허구", desc: "모든 것을 끌어당기는 공허의 구체를 보낸다.", pose: "cast", windup: 0.2, recover: 0.3, cd: 9,
+        proj: [{ t: 0, fx: "shadow/void-orb", speed: 60, range: 220, r: 26, dmg: 0, pierce: true, z: 0, tick: 0.2, tickDmg: 0.5, pull: 80, life: 3.6 }],
+      }],
+    },
+    3: {
+      basic: {
+        name: "그림자 난무", desc: "보이지 않을 만큼 빠르게 그림자를 휘두른다.", pose: "flurry", windup: 0.1, recover: 0.42,
+        fx: [{ t: -0.1, id: "melee/dagger-flurry" }, { t: 0.05, id: "shadow/shadow-flames", dur: 0.7, follow: true }],
+        hits: [0.05, 0.105, 0.16, 0.215, 0.27, 0.325].map((t) => ({ t, box: [0, 50, 17], dmg: 0.27, stop: 0.012 })).concat([{ t: 0.42, box: [0, 54, 18], dmg: 0.6, stop: 0.08, kb: 90 }]),
+      },
+      skills: [{
+        name: "저주의 인장", desc: "인장을 새겨 그 안의 적을 계속 갉아먹고 느리게 한다.", pose: "raise", windup: 0.2, recover: 0.35, cd: 7,
+        fx: [{ t: 0, id: "shadow/hex-sigil", at: "aim", dx: 70 }],
+        ticks: [{ t0: 0.6, t1: 3.8, every: 0.3, circ: [40, 70], at: "aim", dmg: 0.7, st: { slow: 1 } }],
+      }, {
+        name: "해골 군단", desc: "주위를 도는 해골들이 닿는 적을 물어뜯는다.", pose: "cast", windup: 0.15, recover: 0.25, cd: 10,
+        special: { kind: "orbit", n: 1, fx: "shadow/necro-skulls", radius: 4, life: 5, tick: 0.25, r: 42, dmg: 0.55 },
+      }],
+      ult: {
+        name: "일식", desc: "태양을 가리고, 어둠 속에서 모든 적을 집어삼킨다.", pose: "ult", windup: 0.5, recover: 0.6, cd: 26,
+        fx: [{ t: -0.4, id: "shadow/eclipse", dy: -40, follow: true, dur: 2.4 }, { t: 0.1, id: "shadow/black-hole", at: "aim", dx: 90, dur: 2.6 }, { t: 2.7, id: "shadow/dark-explosion", at: "aim", dx: 90 }],
+        ticks: [{ t0: 0.2, t1: 2.6, every: 0.25, circ: [70, 90], at: "aim", dmg: 0.9, pull: 110 }],
+        hits: [{ t: 2.7, circ: [90, 90], at: "aim", dmg: 9, kb: 200, stop: 0.15 }],
+        cam: [{ t: -0.5, dim: 2.6 }, { t: 2.7, shake: 8, flash: 0.8 }],
+      },
+    },
+  },
+
   // the developer's spirit: one god-tier kit at every stage
   code: (() => {
     const kit = {
@@ -272,6 +383,6 @@ export function skillFxIds() {
     if (m.special?.cloud) ids.add(m.special.cloud);
   };
   for (const el of Object.values(SKILLS)) for (const st of Object.values(el)) { walk(st.basic); st.skills.forEach(walk); walk(st.ult); }
-  ["lightning/zap-hit", "lightning/spark-arc", "impacts/hit-spark", "ice/ice-shatter", "scifi/emp-blast", "scifi/glitch", "spawn/disintegrate"].forEach((i) => ids.add(i));
+  ["lightning/zap-hit", "lightning/spark-arc", "impacts/hit-spark", "ice/ice-shatter", "scifi/emp-blast", "scifi/glitch", "spawn/disintegrate", "holy/smite", "holy/blessing"].forEach((i) => ids.add(i));
   return [...ids];
 }

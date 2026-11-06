@@ -173,6 +173,11 @@ export class Action {
         };
         w.addRunner(step, s.life);
       }
+    } else if (s.kind === "heal") {
+      o.heal?.(o.maxHp * s.k);
+      w.fx("holy/blessing", { follow: o, light: 0.8, dur: 1, ramp });
+    } else if (s.kind === "guard") {
+      o.invuln = Math.max(o.invuln, s.dur);
     } else if (s.kind === "execute") {
       // rm -rf: anything weakened in range is simply deleted
       for (const e of w.enemies) {

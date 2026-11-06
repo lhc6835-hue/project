@@ -9,6 +9,7 @@ import { ELEMENTS } from "../data/elements.js";
 import { moveset } from "../data/skills.js";
 import { SPIRIT } from "../data/spirits.js";
 import { sfx } from "../core/audio.js";
+import { TRAITS } from "../data/traits.js";
 
 const BASIC_GAP = 0.06;
 
@@ -28,8 +29,14 @@ export class Hero extends Actor {
     this.contactCd = 0;
     this.anim = new Animator(); this.scarf = new Scarf([0, 6, 8, 10][this.stage], 3.4); this.trail = new Trail(); this.dust = new Dust();
     this.cur = {}; this.prevX = this.x; this.prevY = this.y; this.prevFlip = this.flip; this.vel = [0, 0]; this.stepU = 0; this.wasAir = false; this.lastHand = null;
+    this.traits = (def.traits ?? []).map((k) => TRAITS[k]).filter(Boolean);
     this.buildLook();
   }
+
+  // ---- signature traits
+  each(hook, ...args) { let r = false; for (const t of this.traits) if (t[hook]) r = t[hook](this, this.world, ...args) || r; return r; }
+  onDealt(tgt, dmg, crit) { this.each("hit", tgt, dmg, crit); }
+  onKilled(tgt) { if (tgt.team === 1) this.each("kill", tgt); }
 
   /** Colours: effect ramps from the spirit (tint wins), and a body skin that takes on the element by stage. */
   buildLook() {
@@ -103,6 +110,7 @@ export class Hero extends Actor {
       this.cd[slot] = m.cd * (1 - Math.min(0.6, cdr));
     }
     if (slot === "ult") this.world.emit({ cutin: this });
+    this.each("cast", slot);
     return true;
   }
 
@@ -112,12 +120,15 @@ export class Hero extends Actor {
     const L = Math.hypot(dir[0], dir[1]);
     this.dashDir = L > 0.1 ? [dir[0] / L, dir[1] / L] : [this.flip ? -1 : 1, 0];
     if (this.act?.busy) this.act = null;
+    this.each("dash");
     sfx("dash");
   }
 
   ghost() { this.ghosts.push({ x: this.x, y: this.y, z: this.z, pose: { ...this.lastPose }, flip: this.flip, t: 0.22 }); }
 
   update(dt) {
+    if (!this._started) { this._started = true; this.each("start"); }
+    this.each("tick", dt);
     this.physics(dt);
     for (const k in this.cd) this.cd[k] = Math.max(0, this.cd[k] - dt);
     for (const g of this.ghosts) g.t -= dt;
@@ -245,6 +256,7 @@ export class Hero extends Actor {
     if (!this.dead) this.scarf.draw(p, this.accent, this.stage >= 3 ? this.glowC : null);
     drawRig(p, { x: this.x, y: this.y - this.z, pose, flip, skin: this.skin, decor: this.decor, tint: this.hitFlash > 0 ? hex("#ffffff") : null, alpha: flicker ? 0.45 : 1 });
     p.reset();
+    for (const t of this.traits) t.draw?.(this, p);
     this.trail.draw(p, this.ramps.main.map((c) => (typeof c === "number" ? c : hex(c))), this.glowC);
     if ((this.stage >= 3 || this.el === "code") && !this.dead) this.drawCrown(p, pose, flip);
   }
@@ -261,6 +273,18 @@ export class Hero extends Actor {
       case "water": for (const [i, h] of [[-3, 2], [-1, 3], [1, 3], [3, 2], [0, 5]]) { for (let j = 0; j < h; j++) p.put(x + i, y - 1 - j, j === h - 1 ? A[4] : A[3]); p.add(x + i, y - h, g, 0.6); } break;
       case "wind": for (let a = 0; a < 14; a++) { const an = a / 14 * Math.PI * 2 + t * 4; p.put(Math.round(x + Math.cos(an) * 7), Math.round(y - 3 + Math.sin(an) * 2), a % 3 ? A[3] : A[4]); } p.add(x, y - 3, g, 0.4); break;
       case "earth": for (const s of [-1, 1]) { for (let j = 0; j < 5; j++) { p.put(x + s * (3 + (j >> 1)), y - 1 - j, j > 3 ? A[4] : A[3]); p.put(x + s * (4 + (j >> 1)), y - 1 - j, A[2]); } } break;
+      case "light": {
+        // a halo that turns slowly
+        for (let a = 0; a < 20; a++) { const an = a / 20 * Math.PI * 2 + t; p.put(Math.round(x + Math.cos(an) * 6), Math.round(y - 4 + Math.sin(an) * 1.6), a % 4 ? A[4] : hex("#ffffff")); }
+        for (let j = -6; j <= 6; j++) for (let i = -8; i <= 8; i++) { const d = i * i / 64 + j * j / 36; if (d < 1) p.add(x + i, y - 4 + j, g, 0.08 * (1 - d)); }
+        break;
+      }
+      case "dark": {
+        // two curling horns and a wisp of smoke
+        for (const s of [-1, 1]) for (let j = 0; j < 6; j++) { const xx = x + s * (3 + Math.round(j * 0.6 + (j > 3 ? (j - 3) * 0.8 : 0))), yy = y - 1 - j; p.put(xx, yy, j > 4 ? A[4] : A[2]); p.put(xx + s, yy, A[1]); }
+        for (let k = 0; k < 4; k++) { const ph = (t * 0.8 + k / 4) % 1; p.put(Math.round(x + Math.sin(k * 2 + t * 2) * 2), Math.round(y - 4 - ph * 10), A[3], 1 - ph); }
+        break;
+      }
       case "code": {
         // a floating terminal prompt: </> with a blinking cursor
         const c = Math.floor(t * 3) % 2 ? A[4] : A[3];
@@ -274,10 +298,11 @@ export class Hero extends Actor {
     if (this.def.crown) for (let i = -1; i <= 1; i++) { p.put(x + i * 3, y - 8, hex("#ffd84a")); p.add(x + i * 3, y - 8, hex("#ffd84a"), 0.8); }
   }
 
-  onHurt() { this.iframes = Math.max(this.iframes, 0.35); this.anim.push({ lean: -0.4, head: -0.35, x: -2.5, sx: -0.08, sy: 0.06, aF: 0.6, aN: 0.4 }); }
+  onHurt(dmg, src) { this.each("hurt", dmg, src); this.iframes = Math.max(this.iframes, 0.35); this.anim.push({ lean: -0.4, head: -0.35, x: -2.5, sx: -0.08, sy: 0.06, aF: 0.6, aN: 0.4 }); }
   die() {
     if (this.dead) return;
     this.dead = true; this.hp = 0; this.act = null; this.clearStatusFx();
+    if (this.each("death")) return; // a trait caught the fall
     sfx("die");
     this.world.emit({ heroDied: true, shake: 5 });
   }

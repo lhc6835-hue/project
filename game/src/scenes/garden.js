@@ -5,7 +5,8 @@ import { World } from "../game/world.js";
 import { drawSpirit } from "../game/spirit_art.js";
 import { drawRig } from "../rig/rig.js";
 import { idlePose } from "../game/poses.js";
-import { SPIRIT, GRADES, PASSIVES, MAX_LV, EVOLVE_LV, lvCost, heroStats } from "../data/spirits.js";
+import { SPIRIT, SPIRITS, GRADES, PASSIVES, MAX_LV, EVOLVE_LV, lvCost, heroStats } from "../data/spirits.js";
+import { TRAITS } from "../data/traits.js";
 import { ELEMENTS, STAGES } from "../data/elements.js";
 import { moveset } from "../data/skills.js";
 import { save, spiritByUid } from "../core/save.js";
@@ -124,11 +125,13 @@ export class GardenScene {
     ui.append(this.harvest);
     const bar = el("div", { class: "g-bar" }, `
       <button class="btn sp">${icon("ess")} 정령</button>
+      <button class="btn dex">도감</button>
       <button class="btn fac">정원 시설</button>
       <button class="btn well">소환의 샘</button>
       <button class="btn primary go">출격 ▶</button>`);
     bar.querySelector(".sp").onclick = () => this.spiritPanel();
     bar.querySelector(".fac").onclick = () => this.facilityPanel();
+    bar.querySelector(".dex").onclick = () => this.dexPanel();
     bar.querySelector(".well").onclick = () => {
       if (!this.S.gacha.unlocked) { sfx("ui"); toast("5층의 돌 거인을 쓰러뜨리면 샘이 열려요"); return; }
       import("../main.js").then(({ go }) => go("gacha"));
@@ -201,6 +204,7 @@ export class GardenScene {
           <div class="small dim">${E.name} 속성 · ${STAGES[sp.stage - 1].name} · Lv.${sp.lv}/${cap}${sp.dupes ? ` · 돌파 ${sp.dupes}` : ""}</div>
           <div class="small">체력 ${st.hp} · 공격 ${Math.round(st.atk)} · 치명 ${Math.round(st.crit * 100)}%</div>
           <div class="small gold-t">${d.passives.map((p) => PASSIVES[p].text).join(" · ")}</div>
+          ${(d.traits ?? []).map((k) => `<div class="small trait"><b>✦ ${TRAITS[k].name}</b> ${TRAITS[k].text}</div>`).join("")}
         </div>
       </div>
       <div class="moves">${moves.map((m, i) => `<div class="mv"><b>${["평타", "스킬1", "스킬2", "궁극기"][i === 3 || m === mv.ult ? 3 : i]}</b> ${m.name}<span class="dim"> — ${m.desc}</span></div>`).join("")}</div>
@@ -246,6 +250,40 @@ export class GardenScene {
       const d = SPIRIT[sp.id], mv = moveset(d.el, stage);
       this.showMsg(`${d.name} — ${STAGES[stage - 1].name}!`, `새 평타 <b>${mv.basic.name}</b>, 새 스킬 <b>${mv.s1.name}</b>${mv.s2 ? `, <b>${mv.s2.name}</b>` : ""}${mv.ult ? `, 궁극기 <b class="gold-t">${mv.ult.name}</b>` : ""}을 익혔어요.<br>움직임과 자세도 달라졌어요.`);
     }, 3300);
+  }
+
+  dexPanel() {
+    this.closePanels();
+    const S = this.S, owned = new Set(S.spirits.map((x) => x.id));
+    const els = ["fire", "water", "wind", "earth", "light", "dark", "code"];
+    const list = SPIRITS.filter((d) => !d.dev || owned.has(d.id));
+    const ov = el("div", { class: "overlay" }, `<div class="panel dex-wrap">
+      <div class="row" style="justify-content:space-between"><b class="big">정령 도감</b><span class="dim">${list.filter((d) => owned.has(d.id)).length} / ${list.length}</span><button class="btn sm x">닫기</button></div>
+      <div class="dex-body"><div class="dex-grid"></div><div class="dex-info dim small">정령을 눌러 보세요</div></div></div>`);
+    const grid = ov.querySelector(".dex-grid"), info = ov.querySelector(".dex-info");
+    for (const e of els) {
+      const group = list.filter((d) => d.el === e).sort((a, b) => a.grade - b.grade);
+      if (!group.length) continue;
+      grid.insertAdjacentHTML("beforeend", `<div class="dex-head" style="color:${ELEMENTS[e].css}">${ELEMENTS[e].name}</div>`);
+      for (const d of group) {
+        const has = owned.has(d.id), G = GRADES[d.grade];
+        const b = el("button", { class: "dex-cell" + (has ? "" : " un"), style: `--g:${G.css}` }, `${iconImg(d.id, d.grade >= 3 ? 2 : 1, 32)}<span>${G.stars}</span>`);
+        b.onclick = () => {
+          sfx("ui");
+          grid.querySelectorAll(".dex-cell").forEach((n) => n.classList.remove("on")); b.classList.add("on");
+          info.classList.remove("dim");
+          info.innerHTML = `<div class="row" style="align-items:flex-start">${iconImg(d.id, 3, 56, "sp-big" + (has ? "" : " un"))}<div>
+            <div><b style="color:${ELEMENTS[d.el].css};font-size:calc(var(--u)*9)">${has ? d.name : "???"}</b> <span style="color:${G.css}">${G.stars} ${G.name}</span></div>
+            <div class="small dim">${ELEMENTS[d.el].name} 속성${has ? "" : " · 아직 만나지 못했어요"}</div></div></div>
+            ${has ? `<div class="small" style="margin:calc(var(--u)*3) 0">${d.desc ?? ""}</div>` : ""}
+            <div class="small gold-t">${d.passives.map((p) => PASSIVES[p].text).join(" · ")}</div>
+            ${(d.traits ?? []).map((k) => `<div class="small trait"><b>✦ ${TRAITS[k].name}</b> ${has ? TRAITS[k].text : "???"}</div>`).join("")}`;
+        };
+        grid.append(b);
+      }
+    }
+    ov.querySelector(".x").onclick = () => ov.remove();
+    document.getElementById("ui").append(ov);
   }
 
   facilityPanel() {
