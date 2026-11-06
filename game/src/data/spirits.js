@@ -1,3 +1,4 @@
+import { careBonus } from "./care.js";
 // The spirit roster: starters, and the pool the summoning well draws from.
 // tint: an optional ramp that replaces the element's effect colours (so a crimson fire spirit burns crimson).
 
@@ -149,6 +150,8 @@ export function heroStats(sp, sub) {
   };
   for (const p of def.passives) PASSIVES[p]?.apply(s);
   if (sub) for (const p of SPIRIT[sub.id].passives) PASSIVES[p]?.apply(s);
+  const cb = careBonus(sp);
+  s.hp *= cb.hp; s.atk *= cb.atk; s.crit += cb.crit; s.critDmg += cb.critDmg;
   s.hp = Math.round(s.hp);
   return s;
 }

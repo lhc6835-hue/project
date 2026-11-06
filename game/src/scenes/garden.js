@@ -11,6 +11,8 @@ import { ELEMENTS, STAGES } from "../data/elements.js";
 import { moveset } from "../data/skills.js";
 import { save, spiritByUid } from "../core/save.js";
 import { auth } from "../core/auth.js";
+import { careMethods, nameOf } from "./garden_care.js";
+import { bondLv, BOND_TITLES, careBonus, ensure, TREATS, favTreat } from "../data/care.js";
 import { el, toast, icon } from "../ui/dom.js";
 import { iconImg } from "../ui/icons.js";
 import { sfx } from "../core/audio.js";
@@ -89,15 +91,18 @@ export class GardenScene {
   enter() {
     const S = this.S;
     if (S.gacha.unlocked) this.wellFx = this.world.fx("water/fountain", { x: WELL.x, y: WELL.y - 6, light: 0.7 });
+    this.initCare();
     this.syncWalkers();
     this.buildUi();
     if (this.args.welcome) this.welcome();
     if (this.args.unlocked === "gacha") setTimeout(() => this.showMsg("소환의 샘이 열렸어요!", "5층의 돌 거인을 쓰러뜨려 샘이 다시 흐르기 시작했어요. 첫 10연차는 무료예요."), 400);
   }
 
+  exit() { this.exitCare(); }
+
   syncWalkers() {
-    const S = this.S;
-    const shown = [...S.spirits].sort((a, b) => (b.uid === S.active) - (a.uid === S.active) || (b.uid === S.sub) - (a.uid === S.sub)).slice(0, 12);
+    const S = this.S, keep = this.care?.uid;
+    const shown = [...S.spirits].sort((a, b) => (b.uid === keep) - (a.uid === keep) || (b.uid === S.active) - (a.uid === S.active) || (b.uid === S.sub) - (a.uid === S.sub) || (!!b.gift - !!a.gift)).slice(0, 12);
     this.walkers = shown.map((sp, i) => {
       const old = this.walkers.find((w) => w.uid === sp.uid);
       return old ?? { uid: sp.uid, x: 140 + rand(i, 1) * 200, y: 180 + rand(i, 2) * 70, tx: 0, ty: 0, wait: rand(i, 3) * 2, flip: false, t: rand(i, 4) * 5 };
@@ -127,11 +132,14 @@ export class GardenScene {
     ui.append(this.harvest);
     const bar = el("div", { class: "g-bar" }, `
       <button class="btn sp">${icon("ess")} 정령</button>
+      <button class="btn cr">돌봄</button>
       <button class="btn dex">도감</button>
       <button class="btn fac">정원 시설</button>
       <button class="btn well">소환의 샘</button>
       <button class="btn primary go">출격 ▶</button>`);
     bar.querySelector(".sp").onclick = () => this.spiritPanel();
+    bar.querySelector(".cr").onclick = () => { sfx("ui"); this.carePanel(); };
+    this.bar = bar;
     bar.querySelector(".fac").onclick = () => this.facilityPanel();
     bar.querySelector(".dex").onclick = () => this.dexPanel();
     bar.querySelector(".well").onclick = () => {
@@ -148,7 +156,10 @@ export class GardenScene {
 
   refresh() {
     const r = this.S.res;
-    this.top.innerHTML = `<span>${icon("ess")} ${Math.floor(r.essence)}</span><span>${icon("evo")} ${r.evo}</span><span>${icon("awake")} ${r.awake}</span><span>${icon("gem")} ${r.gems}</span>${r.shards ? `<span>${icon("shard")} ${r.shards}</span>` : ""}`;
+    this.top.innerHTML = `<span>${icon("ess")} ${Math.floor(r.essence)}</span><span>${icon("evo")} ${r.evo}</span><span>${icon("awake")} ${r.awake}</span><span>${icon("gem")} ${r.gems}</span>${r.shards ? `<span>${icon("shard")} ${r.shards}</span>` : ""}<span>간식 ${Object.values(this.S.care?.treats ?? {}).reduce((a, b) => a + b, 0)}</span>`;
+    const needy = this.S.spirits.filter((x) => x.gift || (x.full ?? 70) < 30 || (x.joy ?? 70) < 30).length;
+    const cr = this.bar?.querySelector(".cr");
+    if (cr && cr.dataset.n !== String(needy)) { cr.dataset.n = needy; cr.innerHTML = needy ? `돌봄 <span class="badge">${needy}</span>` : "돌봄"; }
     const st = Math.floor(this.S.treeStock);
     this.harvest.hidden = st < 1;
     this.harvest.innerHTML = `수확 ${icon("ess")} ${st}`;
@@ -190,6 +201,7 @@ export class GardenScene {
 
   spiritDetail(box, sp, redraw) {
     const S = this.S, d = SPIRIT[sp.id], E = ELEMENTS[d.el], G = GRADES[d.grade];
+    ensure(sp);
     const st = heroStats(sp, null), mv = moveset(d.el, sp.stage);
     const cap = maxLv(sp), cost = lvCost(sp.lv);
     const canLv = sp.lv < cap && S.res.essence >= cost;
@@ -202,19 +214,21 @@ export class GardenScene {
       <div class="row" style="align-items:flex-start">
         ${iconImg(sp.id, sp.stage, 56, "sp-big")}
         <div style="flex:1">
-          <div><b style="color:${E.css};font-size:calc(var(--u)*10)">${d.name}</b> <span class="stars" style="color:${G.css}">${G.stars}</span></div>
+          <div><b style="color:${E.css};font-size:calc(var(--u)*10)">${nameOf(sp)}</b> <span class="stars" style="color:${G.css}">${G.stars}</span></div>
           <div class="small dim">${E.name} 속성 · ${STAGES[sp.stage - 1].name} · Lv.${sp.lv}/${cap}${sp.dupes ? ` · 돌파 ${sp.dupes}` : ""}</div>
           <div class="small">체력 ${st.hp} · 공격 ${Math.round(st.atk)} · 치명 ${Math.round(st.crit * 100)}%</div>
           <div class="small gold-t">${d.passives.map((p) => PASSIVES[p].text).join(" · ")}</div>
           ${(d.traits ?? []).map((k) => `<div class="small trait"><b>✦ ${TRAITS[k].name}</b> ${TRAITS[k].text}</div>`).join("")}
         </div>
       </div>
+      <div class="small care-line"><span class="hrt-t">♥ 유대 Lv.${bondLv(sp)} ${BOND_TITLES[bondLv(sp) - 1]}</span> · 포만감 ${Math.round(sp.full)} · 기분 ${Math.round(sp.joy)}${sp.nick ? ` · 애칭 <b>${sp.nick}</b>` : ""}${careBonus(sp).tags.length ? ` · <span class="gold-t">${careBonus(sp).tags.join(", ")}</span>` : ""}</div>
       <div class="moves">${moves.map((m, i) => `<div class="mv"><b>${["평타", "스킬1", "스킬2", "궁극기"][i === 3 || m === mv.ult ? 3 : i]}</b> ${m.name}<span class="dim"> — ${m.desc}</span></div>`).join("")}</div>
       ${next ? `<div class="small dim">다음 단계 <b style="color:var(--hi)">${STAGES[next - 1].name}</b>: Lv.${EVOLVE_LV[next]} + ${evoNeed.evo ? `${icon("evo")}${evoNeed.evo} ` : ""}${evoNeed.awake ? `${icon("awake")}${evoNeed.awake}` : ""} — 새 평타와 스킬${next === 3 ? ", 궁극기" : ""}를 얻어요</div>` : ""}
       <div class="row acts">
         <button class="btn lvup" ${canLv ? "" : "disabled"}>레벨업 ${icon("ess")}${cost}</button>
         <button class="btn lv5" ${canLv ? "" : "disabled"}>+5</button>
         ${next ? `<button class="btn gold evo" ${canEvo ? "" : "disabled"}>진화</button>` : ""}
+        <button class="btn care">돌보기</button>
         ${sp.uid !== S.active ? `<button class="btn primary main">주 정령으로</button>` : ""}
         ${sp.uid !== S.active && sp.uid !== S.sub && S.spirits.some((x) => x.stage >= 2) ? `<button class="btn subb">보조로</button>` : ""}
         ${sp.stage === 3 && S.res.shards >= shardsNeed && sp.dupes < 3 ? `<button class="btn brk">돌파 ${icon("shard")}${shardsNeed}</button>` : ""}
@@ -237,6 +251,7 @@ export class GardenScene {
       this.closePanels(); this.refresh();
       this.evolve(sp, next);
     });
+    q(".care").onclick = () => this.startCare(sp.uid);
     q(".main") && (q(".main").onclick = () => { if (S.sub === sp.uid) S.sub = null; S.active = sp.uid; save(S); sfx("ok"); redraw(); });
     q(".subb") && (q(".subb").onclick = () => { S.sub = sp.uid; save(S); sfx("ok"); redraw(); });
     box.querySelectorAll(".dstage").forEach((b) => (b.onclick = () => {
@@ -306,10 +321,12 @@ export class GardenScene {
       ov.innerHTML = `<div class="panel fac-wrap"><div class="ov-title">정원 시설</div>
         <div class="fac"><b>정수의 나무</b> Lv.${G.tree}<div class="small dim">시간당 정수 ${treeRate(S)} (정령이 많을수록 늘어요, 최대 8시간 저장)</div><button class="btn t" ${S.res.essence >= tc ? "" : "disabled"}>강화 ${icon("ess")}${tc}</button></div>
         <div class="fac"><b>유물 제단</b> Lv.${G.altar}<div class="small dim">출격할 때 체력·공격 +${G.altar * 4}%</div><button class="btn a" ${S.res.essence >= ac ? "" : "disabled"}>강화 ${icon("ess")}${ac}</button></div>
+        ${this.plotFacility()}
         <div class="fac"><b>심도</b> ${S.depthMax}<div class="small dim">10층의 공허의 정령사를 쓰러뜨리면 더 깊은 심도가 열려요. 적이 강해지는 대신 보상이 커져요.</div></div>
         <div class="row" style="justify-content:center"><button class="btn primary x">닫기</button></div></div>`;
       ov.querySelector(".t").onclick = () => { S.res.essence -= tc; G.tree++; save(S); sfx("level"); render(); this.refresh(); };
       ov.querySelector(".a").onclick = () => { S.res.essence -= ac; G.altar++; save(S); sfx("level"); render(); this.refresh(); };
+      ov.querySelector(".pf") && (ov.querySelector(".pf").onclick = () => { this.buyPlot(); render(); this.refresh(); });
       ov.querySelector(".x").onclick = () => ov.remove();
     };
     render();
@@ -347,8 +364,10 @@ export class GardenScene {
     const S = this.S;
     S.treeStock = Math.min(treeCap(S), S.treeStock + (treeRate(S) / 3600) * dt);
     if (Math.floor(this.t * 2) !== Math.floor((this.t - dt) * 2)) this.refresh();
+    this.updateCare(dt);
     for (const w of this.walkers) {
       w.t += dt;
+      if (w.hold) continue;
       if (w.wait > 0) { w.wait -= dt; continue; }
       if (!w.tx) { w.tx = 40 + Math.random() * 400; w.ty = 165 + Math.random() * 90; }
       const dx = w.tx - w.x, dy = w.ty - w.y, d = Math.hypot(dx, dy);
@@ -356,7 +375,7 @@ export class GardenScene {
       w.x += (dx / d) * 16 * dt; w.y += (dy / d) * 10 * dt; w.flip = dx < 0;
     }
     if (this.anim) this.anim.t += dt;
-    if (this.g.input.take("confirm") && !document.querySelector("#ui .overlay")) this.sortiePanel();
+    if (this.g.input.take("confirm") && !document.querySelector("#ui .overlay") && !this.care) this.sortiePanel();
   }
 
   drawTree(p) {
@@ -408,6 +427,7 @@ export class GardenScene {
     scr.frame.color.set(this.bg);
     p.reset();
     this.drawWell(p);
+    this.drawPlots(p);
     this.world.draw(p);
     p.reset();
     this.drawTree(p);
@@ -417,17 +437,21 @@ export class GardenScene {
     const items = this.walkers.map((w) => ({ w, sp: spiritByUid(S, w.uid) })).filter((o) => o.sp).sort((a, b) => a.w.y - b.w.y);
     for (const { w, sp } of items) {
       if (this.anim && this.anim.sp.uid === sp.uid) continue;
-      const hop = w.wait > 0 ? 0 : Math.abs(Math.sin(w.t * 6)) * 2;
+      const hop = this.walkerHop(w) ?? (w.wait > 0 || w.hold ? 0 : Math.abs(Math.sin(w.t * 6)) * 2);
       // shadow
       for (let i = -5; i <= 5; i++) p.blendPx(Math.round(w.x + i), Math.round(w.y + 12), 0xff000000, 0.3);
-      drawSpirit(p, w.x, w.y - hop, { id: sp.id, stage: sp.stage, t: w.t, flip: w.flip });
+      drawSpirit(p, w.x + this.walkerNudge(w), w.y - hop, { id: sp.id, stage: sp.stage, t: w.t, flip: w.flip });
+      if (!w.react) this.drawBubble(p, w, sp, hop);
       if (sp.uid === S.active) { const c = hex("#ffd84a"); p.put(Math.round(w.x), Math.round(w.y - 22 - hop), c); p.put(Math.round(w.x) - 1, Math.round(w.y - 23 - hop), c); p.put(Math.round(w.x) + 1, Math.round(w.y - 23 - hop), c); }
     }
+    this.drawCareFx(p);
     if (this.anim) {
       const a = this.anim, k = Math.min(1, a.t / 1.9);
       drawSpirit(p, 240, 180 - k * 10, { id: a.sp.id, stage: a.t < 1.9 ? a.stage - 1 : a.stage, t: this.t, glow: 1 + k * 2, flip: false });
     }
   }
 }
+
+Object.assign(GardenScene.prototype, careMethods);
 
 export default { garden: GardenScene };

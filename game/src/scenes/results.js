@@ -5,6 +5,7 @@ import { World } from "../game/world.js";
 import { save } from "../core/save.js";
 import { el, icon } from "../ui/dom.js";
 import { sfx, music, jingle } from "../core/audio.js";
+import { afterRun } from "../data/care.js";
 
 export class ResultsScene {
   constructor(game, args) {
@@ -23,6 +24,7 @@ export class ResultsScene {
     if (!a.test) {
       S.res.essence += L.essence; S.res.gems += L.gems; S.res.evo += L.evo; S.res.awake += L.awake;
       S.best = Math.max(S.best, a.floor - (a.died ? 1 : 0)); S.runs++;
+      if (!a.test) afterRun(S, !a.died);
       if (a.boss === "golem") S.bossKills.golem++;
       if (a.boss === "void") S.bossKills.void++;
       if ((S.bossKills.golem > 0) && !S.gacha.unlocked) { S.gacha.unlocked = true; S.gacha.freeTen = true; unlock = "gacha"; }

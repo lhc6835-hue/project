@@ -272,7 +272,7 @@ export class RunScene {
     const def = SPIRIT[this.spirit.id], E = ELEMENTS[def.el];
     this.hud = el("div", { class: "hud pass" }, `
       <div class="hud-top">
-        <div class="hud-hp"><div class="hud-name"><b style="color:${E.css}">${def.name}</b> <span class="dim">Lv.${this.spirit.lv} · ${STAGES[this.spirit.stage - 1].name}</span></div>
+        <div class="hud-hp"><div class="hud-name"><b style="color:${E.css}">${this.spirit.nick || def.name}</b> <span class="dim">Lv.${this.spirit.lv} · ${STAGES[this.spirit.stage - 1].name}</span></div>
           <div class="bar hpbar"><i></i><span></span></div></div>
         <div class="hud-floor"><b class="fl"></b><span class="dim wv"></span></div>
         <div class="hud-loot"><span class="ess"></span><span class="gem"></span></div>
