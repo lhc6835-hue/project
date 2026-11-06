@@ -26,8 +26,48 @@ class Boss extends Actor {
     this.state = "intro"; this.st0 = 0; this.cool = 2; this.marks = []; this.phase = 1; this.step = 0;
     this.invuln = 99; this.stats = { atk: o.atk, crit: 0, critDmg: 1.5 };
     this.introT = 0; this.atk = null;
+    // body squash & stretch: a bouncy spring per axis around 1, kicked by squash()
+    this.jx = 1; this.jy = 1; this.jvx = 0; this.jvy = 0;
+    this._draw = this.draw; this.draw = (p) => this.jellyDraw(p);
+    this.jf = null;
   }
   get hero() { return this.world.hero; }
+  /** Kick the body: sx/sy are the scale it is thrown toward (e.g. 1.12, 0.86 for a heavy landing). */
+  squash(sx, sy, k = 1) { this.jvx += (sx - 1) * 22 * k; this.jvy += (sy - 1) * 22 * k; }
+  jelly(dt) {
+    const K = 190, Z = 0.32, D = 2 * Math.sqrt(K) * Z, breath = this.state === "dying" ? 0 : Math.sin(this.t * 2.1) * 0.018;
+    this.jvx += ((1 - breath * 0.5 - this.jx) * K - this.jvx * D) * dt; this.jx += this.jvx * dt;
+    this.jvy += ((1 + breath - this.jy) * K - this.jvy * D) * dt; this.jy += this.jvy * dt;
+    // keep the volume roughly constant: a squash widens, a stretch narrows
+  }
+  /** Where the squash is anchored (feet for walkers; overridden by flyers). */
+  jellyPivot() { return [this.x, this.y - this.z]; }
+  jellyDraw(p) {
+    const sx = this.jx, sy = this.jy;
+    // the body is redrawn 24 times a second into a private frame (bosses are big) and stamped every frame,
+    // scaled about the pivot for squash and stretch (nearest pixel, so it stays crisp)
+    const [px, py] = this.jellyPivot(), FW = 380, FH = 300;
+    if (!this.jf) this.jf = createFrame(FW, FH, 0, 0);
+    const F = this.jf, now = this.world.time;
+    if (this.jfAt === undefined || now - this.jfAt >= 1 / 24 || now < this.jfAt || this.hitFlash > 0 !== this.jfFlash) {
+      F.ox = Math.round(px) - 190; F.oy = Math.round(py) - 240; clearFrame(F);
+      this._draw(painterFor(F));
+      this.jfAt = now; this.jfFlash = this.hitFlash > 0; this.jfP = [px, py];
+    }
+    const ox = F.ox + Math.round(px - this.jfP[0]), oy = F.oy + Math.round(py - this.jfP[1]);
+    const x0 = Math.floor(px - (px - ox) * sx), x1 = Math.ceil(px + (ox + FW - px) * sx), y0 = Math.floor(py - (py - oy) * sy), y1 = Math.ceil(py + (oy + FH - py) * sy);
+    const C = F.color, L = F.light;
+    for (let Y = y0; Y < y1; Y++) {
+      const sy0 = Math.round(py + (Y + 0.5 - py) / sy - 0.5) - oy; if (sy0 < 0 || sy0 >= FH) continue;
+      const row = sy0 * FW;
+      for (let X = x0; X < x1; X++) {
+        const sx0 = Math.round(px + (X + 0.5 - px) / sx - 0.5) - ox; if (sx0 < 0 || sx0 >= FW) continue;
+        const k = row + sx0, col = C[k], lt = L[k];
+        if (col) { const al = col >>> 24; if (al >= 250) p.put(X, Y, col); else p.blendPx(X, Y, (col | 0xff000000) >>> 0, al / 255); }
+        if (lt) p.add(X, Y, lt, 1);
+      }
+    }
+  }
   /** A ground warning that fires after t seconds. kind: circle (r) or band (x0, x1, half depth). */
   mark(m) { this.marks.push({ ...m, T: m.t }); }
   drawGround(p) {
@@ -64,13 +104,14 @@ class Boss extends Actor {
     if (h && !h.dead && h.x >= x0 - h.r && h.x <= x1 + h.r && Math.abs(h.y - y) <= hd + 2) this.world.hit(this, h, { dmg, kb, from: [h.x - 20, y], spark: false });
   }
   /** Begin an attack: fn(t, dt, A) runs each frame until it returns true. */
-  start(name, fn, extra = {}) { this.atk = { name, fn, t: 0, ...extra }; this.state = "attack"; }
-  onHurt(dmg) { if (this.state !== "dying") this.flinch = 0.12; }
+  start(name, fn, extra = {}) { this.atk = { name, fn, t: 0, ...extra }; this.state = "attack"; this.squash(1.07, 0.93, 0.8); }
+  onHurt(dmg) { if (this.state !== "dying") { this.flinch = 0.12; this.squash(1.035, 0.965, 0.6); } }
   die() {
     if (this.dead || this.state === "dying") return;
     this.hp = 1; this.state = "dying"; this.dieT = 0; this.marks = []; this.atk = null; this.invuln = 99;
     this.clearStatusFx();
     this.world.emit({ bossDying: this, slowmo: 1.6 });
+    this.squash(0.9, 1.12, 1.2);
     sfx("boom");
   }
   finishDeath() {
@@ -80,7 +121,7 @@ class Boss extends Actor {
     this.world.emit({ killed: this, bossDown: this, shake: 10, flash: 1 });
   }
   baseUpdate(dt) {
-    this.physics(dt); this.tickMarks(dt);
+    this.physics(dt); this.tickMarks(dt); this.jelly(dt);
     if (this.flinch > 0) this.flinch -= dt;
     if (this.state === "intro") { this.introT += dt; if (this.introT >= this.introLen) { this.state = "idle"; this.invuln = 0; this.world.emit({ bossReady: this }); } return false; }
     if (this.state === "dying") { this.dieT += dt; this.dying(dt); return false; }
@@ -98,8 +139,8 @@ class Boss extends Actor {
 }
 
 // ------------------------------------------------------------------------------------------ Terragon
-const ROCK = ramp(["#15131b", "#24212d", "#363241", "#4b4658", "#635d72", "#827b92", "#a59eb3"]);
-const ROCK_HOT = ramp(["#0e0808", "#1a0e0e", "#261414", "#341c1a", "#462620", "#5c3428", "#7a4632"]);
+const ROCK = ramp(["#191830", "#272a48", "#383f62", "#4e5880", "#6a78a0", "#909fc0", "#c0cbe2"]);
+const ROCK_HOT = ramp(["#1a0a10", "#2c1018", "#43181e", "#5c2422", "#7a3426", "#9c4a2c", "#c86a38"]);
 const MOSS = ramp(["#132a1a", "#1d4026", "#2a5a30", "#3e7a3c", "#5c9a48"]);
 const CRYS = ramp(["#3a2208", "#7a4a10", "#c48412", "#f0b424", "#ffe066", "#fff6c4", "#ffffff"]);
 const MAGMA = ramp(["#3a0a06", "#7a1a0a", "#c43a10", "#f26a1a", "#ffae35", "#ffe27a", "#ffffff"]);
@@ -135,6 +176,7 @@ export class StoneGiant extends Boss {
   }
   onPhase() {
     const w = this.world;
+    this.squash(0.9, 1.14, 1.4);
     w.emit({ banner: "테라곤의 껍질이 깨진다!", color: "#ff8a2a", shake: 8, flash: 0.6 });
     sfx("boom");
     // chunks of crust fly off
@@ -172,8 +214,9 @@ export class StoneGiant extends Boss {
     let hits = 0;
     this.start("slam", (t) => {
       this.aim = [tx, ty];
+      if (!this.wound && t >= T * 0.6) { this.wound = true; this.squash(0.93, 1.1, 1); }
       if (t >= T && hits === 0) {
-        hits = 1;
+        hits = 1; this.wound = false; this.squash(1.16, 0.82, 1.4);
         w.fx("impacts/ground-slam", { x: tx, y: ty, light: 1, ramp: this.phase === 2 ? undefined : ELEMENTS.earth.ramp, opts: { reach: 90 }, dur: 0.8 });
         w.fx("explosions/dirt-explosion", { x: tx, y: ty + 1, light: 0.7, dur: 0.9 });
         this.hitHeroIn(tx, ty, 48, this.stats.atk * 1.5, 220);
@@ -205,7 +248,7 @@ export class StoneGiant extends Boss {
     this.start("sweep", (t) => {
       if (t >= T && !hit) {
         hit = true;
-        this.hitHeroBand(x0, x1, y, 10, this.stats.atk * 1.3, 240);
+        this.hitHeroBand(x0, x1, y, 10, this.stats.atk * 1.3, 240); this.squash(1.12, 0.9, 1.1);
         w.emit({ shake: 6 }); sfx("swing");
         for (let i = 0; i < 6; i++) w.after(i * 0.03, () => w.fx("impacts/blunt-hit", { x: this.x + f * (30 + i * 28), y: y + 1, light: 0.6, dur: 0.4 }));
       }
@@ -235,6 +278,7 @@ export class StoneGiant extends Boss {
       A.k = A.k ?? 0;
       while (A.k < n && t > 0.5 + A.k * 0.14) {
         const d = 40 + A.k * 34, x = this.x + C(ang) * d, y = this.y + S(ang) * d * 0.6;
+        if (A.k === 0) this.squash(1.12, 0.88, 1.2);
         this.mark({ x, y, r: 18, t: 0.42, fire: () => { this.hitHeroIn(x, y, 20, this.stats.atk * 1.1, 60); w.emit({ shake: 2 }); } });
         w.fx("nature/earth-spike", { x, y, light: 0.9, ramp: this.phase === 2 ? undefined : ELEMENTS.earth.ramp, opts: { height: 48 }, dur: 1.4 });
         A.k++;
@@ -321,9 +365,12 @@ export class StoneGiant extends Boss {
   animate(dt) {
     if (this.moving) this.walkT += dt;
     const P = this.targetPose(), fast = this.state === "attack" || this.state === "dying";
-    this.sk.drive(P, dt, fast ? 150 : 70, fast ? 15 : 11, { x: P.x ?? 0, y: P.y ?? this.hipY, lean: P.lean ?? 0 });
+    // looser springs than before: limbs overshoot a little and settle, so every pose lands with weight
+    this.sk.drive(P, dt, fast ? 170 : 60, fast ? 13 : 7.5, { x: P.x ?? 0, y: P.y ?? this.hipY, lean: P.lean ?? 0 });
     // heavy footfalls shake the room
-    if (this.moving) { const s = Math.sign(Math.sin(this.walkT * 4.2)); if (s !== this.stepSide) { this.stepSide = s; this.world.emit({ shake: 2 }); sfx("door"); } }
+    if (this.moving) { const s = Math.sign(Math.sin(this.walkT * 4.2)); if (s !== this.stepSide) { this.stepSide = s; this.world.emit({ shake: 2 }); sfx("door"); this.squash(1.05, 0.95, 0.7); } }
+    // chest beats while it calls the rocks down
+    if (this.state === "attack" && this.atk?.name === "rain") { const b = Math.floor(this.atk.t * 5.1); if (b !== this.beat) { this.beat = b; if (this.atk.t > 0.4 && this.atk.t < 1.6) this.squash(1.04, 0.97, 0.6); } }
   }
 
   dying(dt) {
@@ -352,13 +399,14 @@ export class StoneGiant extends Boss {
     const R = hot ? ROCK_HOT : ROCK, glowC = hot ? hex("#ff6a2a") : hex("#ffc24a"), core = hot ? MAGMA : CRYS;
     const pulse = (S(t * (hot ? 8 : 3.2)) + 1) / 2;
     const vein = hot ? MAGMA[4 + Math.round(pulse)] : CRYS[3 + Math.round(pulse)], veinDk = hot ? MAGMA[2] : CRYS[1];
-    // rift-light through organic cracks: thin ridges of noise; wider and brighter once it is angry
+    // rift-light in a few long, deliberate seams (low-frequency noise ridges), not a web of hairline cracks
     const cracks = (seed, wide = 1) => (u, v, d, sh) => {
-      if (d > -1.2) return 0;
-      const n = Math.abs(noise2(u * 0.11 + seed, v * 0.11 - seed, seed)), w = (hot ? 0.075 : 0.05) * wide;
-      return n < w * 0.45 ? vein : n < w ? veinDk : 0;
+      if (d > -2) return 0;
+      const n = Math.abs(noise2(u * 0.045 + seed, v * 0.05 - seed, seed)), w = (hot ? 0.06 : 0.04) * wide;
+      return n < w * 0.5 ? vein : n < w ? veinDk : 0;
     };
-    const mossy = (seed) => (u, v, d, sh) => (!hot && sh > 0.78 && noise2(u * 0.22 + seed, v * 0.22, seed) > 0.38 ? MOSS[Math.min(4, 2 + Math.round((noise2(u * 0.6, v * 0.6, seed) + 1)))] : 0);
+    // moss sits in soft caps on the sunlit tops of the boulders
+    const mossy = (seed) => (u, v, d, sh) => (!hot && sh > 0.74 && noise2(u * 0.07 + seed, v * 0.07, seed) > 0.05 ? (sh > 0.88 ? MOSS[4] : MOSS[3]) : 0);
     const both = (...fs) => (u, v, d, sh) => { for (const fn of fs) { const c = fn(u, v, d, sh); if (c) return c; } return 0; };
     // a lumpy boulder stretched along a bone
     const rockLimb = (len, w0, w1, seed) => (u, v) => { const k = clamp(v / len); return sd.rock(u, v - len / 2, w0 + (w1 - w0) * k, len / 2 + 3, seed, 0.16, 9); };
@@ -372,18 +420,18 @@ export class StoneGiant extends Boss {
     part(p, W.thighF, f, rockLimb(W.thighF.len, 9 * K, 8 * K, 2), OF({ r: 30 * K }));
     part(p, W.shinF, f, rockLimb(W.shinF.len, 8 * K, 10 * K, 3), OF({ r: 30 * K }));
     part(p, W.shF, f, rockLimb(W.shF.len, 9 * K, 7.5 * K, 4), OF({ r: 34 * K }));
-    part(p, W.foreF, f, rockLimb(W.foreF.len, 7 * K, 9.5 * K, 5), OF({ r: 36 * K, paint: cracks(5) }));
+    part(p, W.foreF, f, rockLimb(W.foreF.len, 7 * K, 9.5 * K, 5), OF({ r: 36 * K }));
     part(p, W.fistF, f, (u, v) => sd.rock(u, v - 6 * K, 12 * K, 10 * K, 6, 0.2, 7), OF({ r: 24 * K, paint: cracks(6, 1.4) }));
     // hips and the great chest: a cliff of stacked boulders
-    part(p, W.spine, f, (u, v) => sd.rock(u, v - 3 * K, 19 * K, 11 * K, 7, 0.18, 8), O({ r: 26 * K, paint: cracks(7) }));
+    part(p, W.spine, f, (u, v) => sd.rock(u, v - 3 * K, 19 * K, 11 * K, 7, 0.18, 8), O({ r: 26 * K }));
     part(p, W.spine, f, (u, v) => Math.min(sd.rock(u, v - 21 * K, 26 * K, 22 * K, 8, 0.13, 11), sd.rock(u - 7 * K, v - 31 * K, 20 * K, 15 * K, 9, 0.2, 8), sd.rock(u + 12 * K, v - 12 * K, 13 * K, 11 * K, 10, 0.2, 7)), O({ r: 48 * K, paint: both(cracks(8, 1.2), mossy(3)) }));
     // a ridge of crystal spires and little pines along the back (the spine's +u side)
-    for (const [along, h, tilt, w2] of [[10, 16, 0.45, 3.2], [17, 28, 0.18, 4.2], [24, 22, -0.05, 3.6], [31, 14, -0.3, 3]]) {
+    for (const [along, h, tilt, w2] of [[13, 20, 0.35, 4], [22, 30, 0.08, 5], [31, 18, -0.25, 3.8]]) {
       const [cx, cy] = at(W.spine, along * K, 21 * K), mid = [W.spine.x + (W.spine.ex - W.spine.x) * 0.5, W.spine.y + (W.spine.ey - W.spine.y) * 0.5];
       const dir = Math.atan2(cy - mid[1], cx - mid[0]);
       crystal(cx, cy, h * (hot ? 1.1 : 1), w2, -(dir + Math.PI / 2) + tilt * f, 1);
     }
-    if (!hot) for (const [along, h] of [[6, 9], [36, 7], [20, 6]]) {
+    if (false) for (const [along, h] of [[6, 9], [36, 7], [20, 6]]) {
       const [tx, ty] = at(W.spine, along * K, 25 * K);
       const pine = hex("#1d4026"), pine2 = hex("#3e7a3c");
       for (let j = 0; j < h * K; j++) { const wd = Math.round((j / (h * K)) * 3 * K * 0.6) + 1; for (let i = -wd; i <= wd; i++) p.put(Math.round(tx + i), Math.round(ty - h * K + j), i < 0 ? pine2 : pine); }
@@ -396,22 +444,22 @@ export class StoneGiant extends Boss {
     for (let i = 0; i < 5; i++) { const an = i / 5 * Math.PI * 2 + t * 0.8; energy(p, hx, hy, hx + C(an) * (12 + pulse * 6) * K, hy + S(an) * (10 + pulse * 5) * K, core[core.length - 2], glowC, 1, 0.12 + pulse * 0.1); }
     // near leg
     part(p, W.thighN, f, rockLimb(W.thighN.len, 10 * K, 9 * K, 12), O({ r: 30 * K, paint: mossy(12) }));
-    part(p, W.shinN, f, rockLimb(W.shinN.len, 8.5 * K, 11 * K, 13), O({ r: 30 * K, paint: cracks(13) }));
+    part(p, W.shinN, f, rockLimb(W.shinN.len, 8.5 * K, 11 * K, 13), O({ r: 30 * K }));
     // near arm: a boulder pauldron crowned with crystals and trailing moss, a cracked forearm, a crystal fist
     part(p, W.shN, f, rockLimb(W.shN.len, 9.5 * K, 8 * K, 14), O({ r: 34 * K }));
-    part(p, W.shN, f, (u, v) => sd.rock(u, v - 1 * K, 15 * K, 12 * K, 15, 0.2, 8), O({ r: 28 * K, paint: both(mossy(5), cracks(15)) }));
+    part(p, W.shN, f, (u, v) => sd.rock(u, v - 1 * K, 15 * K, 12 * K, 15, 0.2, 8), O({ r: 28 * K, paint: mossy(5) }));
     const [px0, py0] = at(W.shN, 0, 0);
-    for (const [ox, h, a2] of [[-4, 15, -0.25], [3, 11, 0.25], [9, 8, 0.6]]) crystal(px0 + ox * K * f, py0 - 9 * K, h, 2.8, a2 * f, 0.8);
-    if (!hot) this.moss.forEach((m, i) => {
+    for (const [ox, h, a2] of [[-3, 16, -0.2], [5, 11, 0.35]]) crystal(px0 + ox * K * f, py0 - 9 * K, h, 2.8, a2 * f, 0.8);
+    if (false) this.moss.forEach((m, i) => {
       const [mx, my] = at(W.shN, (4 + i * 4) * K, (-10 + i * 5) * K);
       m.update([mx, my], 1 / 60, [S(t * 1.3 + i) * 30, 0]);
       for (let k = 1; k < m.p.length; k++) energy(p, m.p[k - 1].x, m.p[k - 1].y, m.p[k].x, m.p[k].y, MOSS[3], MOSS[1], 1, 0);
     });
     part(p, W.foreN, f, rockLimb(W.foreN.len, 8 * K, 10.5 * K, 16), O({ r: 36 * K, paint: cracks(16, 1.2) }));
     part(p, W.fistN, f, (u, v) => sd.rock(u, v - 5 * K, 12 * K, 10 * K, 17, 0.2, 7), O({ r: 24 * K, paint: cracks(17, 1.5) }));
-    for (const [ox, oy, h] of [[7, 2, 11], [0, 5, 14], [-7, 2, 10]]) { const [cx, cy] = at(W.fistN, (oy + 9) * K, ox * K); crystal(cx, cy, h, 2.4, W.fistN.wa + Math.PI, 0.7); }
+    for (const [ox, oy, h] of [[5, 3, 12], [-5, 3, 10]]) { const [cx, cy] = at(W.fistN, (oy + 9) * K, ox * K); crystal(cx, cy, h, 2.4, W.fistN.wa + Math.PI, 0.7); }
     // head: a horned skull with a heavy brow and a hanging jaw
-    part(p, W.head, f, (u, v) => Math.min(sd.rock(u, v - 8 * K, 11 * K, 10 * K, 18, 0.14, 8), sd.rock(u + 2 * K, v - 15 * K, 8 * K, 4 * K, 19, 0.2, 6)), O({ r: 22 * K, paint: both(cracks(18), mossy(9)) }));
+    part(p, W.head, f, (u, v) => Math.min(sd.rock(u, v - 8 * K, 13 * K, 11.5 * K, 18, 0.12, 8), sd.rock(u + 2 * K, v - 16 * K, 9 * K, 4.5 * K, 19, 0.2, 6)), O({ r: 22 * K, paint: mossy(9) }));
     part(p, W.head, f, (u, v) => sd.rock(u - 6 * K, v - 8 * K, 4 * K, 9 * K, 20, 0.2, 6), O({ r: 16 * K }));
     // two great crystal horns sweeping back over the shoulders
     for (const [along, across, len, curl] of [[5, 8, 20, 0.9], [3, 5, 15, 0.7]]) {
@@ -434,7 +482,7 @@ export class StoneGiant extends Boss {
       d.a += (hot ? 2.2 : 1) * 0.016;
       if (S(d.a) <= 0) continue;
       const x = this.x + C(d.a) * d.r * K, y = this.y + d.y * K + S(d.a) * 12;
-      sculpt(p, x, y, (u, v) => sd.rock(u, v, d.s * K, d.s * 0.8 * K, d.r, 0.25, 5), { ramp: R, r: d.s * K + 3, tint: flash, paint: cracks(d.r, 2) });
+      sculpt(p, x, y, (u, v) => sd.rock(u, v, d.s * K, d.s * 0.8 * K, d.r, 0.25, 5), { ramp: R, r: d.s * K + 3, tint: flash });
       glow(p, x, y, d.s * K * 2, glowC, 0.12);
     }
     this.drawDebris(p, 0);
@@ -491,6 +539,7 @@ export class VoidCaller extends Boss {
     this.flip = true;
   }
   onAdd() {}
+  jellyPivot() { return [this.x, this.y - 60]; }
   onPhase() {
     const w = this.world;
     w.emit({ banner: "공허의 눈이 열린다!", color: "#c684ff", shake: 7, flash: 0.7 });
@@ -541,7 +590,7 @@ export class VoidCaller extends Boss {
         w.fx("shadow/dark-explosion", { x: tx, y: ty + 1, light: 0.8, ramp: VOIDC.map(toHexC), dur: 0.7 });
         this.hitHeroIn(tx, ty, 28, this.stats.atk * 1.4, 70);
         const hh = this.hero; if (hh && Math.hypot(hh.x - tx, (hh.y - ty) * DEPTH_K) < 30) hh.applyStatus({ root: 1.0 });
-        w.emit({ shake: 6 }); sfx("boom");
+        this.squash(1.09, 0.92, 0.9); w.emit({ shake: 6 }); sfx("boom");
       }
       if (t > T + 0.5) { hand.override = false; return true; }
       return false;
@@ -560,7 +609,7 @@ export class VoidCaller extends Boss {
       A.k = A.k ?? 0;
       while (A.k < n && t > 0.3 + A.k * 0.32) {
         const tx = h.x + (Math.random() - 0.5) * 24, ty = h.y;
-        this.mark({ x: tx, y: ty, r: 24, t: delay + 0.1, fire: () => { this.hitHeroIn(tx, ty, 26, this.stats.atk * 1.3, 100); w.emit({ shake: 3 }); } });
+        this.mark({ x: tx, y: ty, r: 24, t: delay + 0.1, fire: () => { this.hitHeroIn(tx, ty, 26, this.stats.atk * 1.3, 100); this.squash(1.09, 0.92, 0.9); w.emit({ shake: 3 }); } });
         w.fx(id, { x: tx, y: ty, ramp: rp, light: 0.95, dur: 2.2 });
         A.k++;
       }
@@ -578,7 +627,7 @@ export class VoidCaller extends Boss {
         this.beam = { y, x0, x1, t: t - T, dir };
         Aa.tick = (Aa.tick ?? 0) - dt;
         if (Aa.tick <= 0) { Aa.tick = 0.14; this.hitHeroBand(x0, x1, y, 9, this.stats.atk * 0.45, 60); }
-        if (!Aa.shook) { Aa.shook = true; w.emit({ shake: 5, flash: 0.3 }); sfx("zap"); }
+        if (!Aa.shook) { Aa.shook = true; this.squash(1.09, 0.92, 0.9); w.emit({ shake: 5, flash: 0.3 }); sfx("zap"); }
       } else this.beam = null;
       if (t > T + 0.95) { for (const hd of this.hands) hd.override = false; this.beam = null; return true; }
       return false;
@@ -656,7 +705,7 @@ export class VoidCaller extends Boss {
     const w = this.world, u = this.dieT;
     if (Math.floor(u * 6) !== Math.floor((u - dt) * 6) && u < 1.8) {
       w.fx("lightning/zap-hit", { x: this.x + (Math.random() - 0.5) * 40, y: this.y + 1, z: this.z + 20 + Math.random() * 50, light: 1, ramp: VOIDC.map(toHexC), top: true });
-      w.emit({ shake: 3 }); sfx("zap");
+      this.squash(1.09, 0.92, 0.9); w.emit({ shake: 3 }); sfx("zap");
     }
     if (u > 1.4 && !this.imploded) { this.imploded = true; w.fx("explosions/implosion", { x: this.x, y: this.y, z: this.z + 40, light: 1.2, top: true, ramp: VOIDC.map(toHexC) }); }
     if (u >= 2.1) {
@@ -828,6 +877,7 @@ export class StormRoc extends Boss {
     sfx("zap");
     w.fx("lightning/thunderclap", { x: this.x, y: this.y, z: this.hover + 40, light: 1, ramp: ELEMENTS.wind.ramp, top: true });
   }
+  jellyPivot() { return [this.x, this.y - this.hover - 46]; }
   /** Render one missing wing frame (used while the intro and phase change play, so fights never hitch). */
   warmWings(hot) {
     this.wingCache = this.wingCache ?? new Map();
@@ -847,6 +897,10 @@ export class StormRoc extends Boss {
     const want = this.state === "intro" ? (this.introT < 1.6 ? 160 - this.introT / 1.6 * 120 : 40) : (this.wantHover ?? 40);
     this.hover += (want - this.hover) * Math.min(1, dt * 4);
     this.flapT += dt * (this.state === "attack" && this.atk?.name === "gale" ? 2.6 : 1);
+    // each downstroke pushes the body: a squash as the wings come down, a stretch as they rise
+    const fl = Math.sin(this.flapT * 2.6), down = fl < this.lastFl;
+    if (down !== this.wasDown) { this.wasDown = down; if (this.state !== "dying") this.squash(down ? 1.04 : 0.97, down ? 0.95 : 1.04, 0.6); }
+    this.lastFl = fl;
     for (const s of this.sparks) s.t += dt;
     this.sparks = this.sparks.filter((s) => s.t < s.life);
     if (Math.random() < dt * (this.phase === 2 ? 14 : 6)) this.sparks.push({ t: 0, life: 0.12 + Math.random() * 0.1, a: Math.random() * Math.PI * 2, r: 20 + Math.random() * 40 });
@@ -882,7 +936,7 @@ export class StormRoc extends Boss {
   }
   atkThunder() {
     const w = this.world, h = this.hero, n = this.phase === 2 ? 6 : 4;
-    sfx("zap");
+    sfx("zap"); this.squash(0.9, 1.12, 1);
     this.start("thunder", (t, dt, A) => {
       A.k = A.k ?? 0;
       while (A.k < n && t > 0.35 + A.k * 0.22) {
@@ -901,7 +955,7 @@ export class StormRoc extends Boss {
     this.start("gale", (t) => {
       if (t >= T && !fired) {
         fired = true;
-        this.hitHeroBand(x0, x1, y, 15, this.stats.atk * 0.7, 380);
+        this.hitHeroBand(x0, x1, y, 15, this.stats.atk * 0.7, 380); this.squash(1.12, 0.88, 1.3);
         w.fx("nature/tornado", { x: this.x + f * 40, y, light: 0.7, ramp: ELEMENTS.wind.ramp, dur: 0.9, opts: { height: 60 } });
         for (let i = 0; i < 5; i++) w.after(i * 0.05, () => w.fx("impacts/hit-spark", { x: this.x + f * (60 + i * 40), y: y + (Math.random() - 0.5) * 20, z: 10, light: 0.5 }));
         w.emit({ shake: 5 }); sfx("dash");
@@ -935,9 +989,11 @@ export class StormRoc extends Boss {
       // swoop: low and fast along the band
       this.wantHover = 8;
       const u = clamp((t - T) / 0.45);
+      if (!this.diving) { this.diving = true; this.squash(1.22, 0.82, 1.3); }
       this.x = from + (to - from) * u; this.flip = to < from;
       if (!hit && Math.abs(this.hero.x - this.x) < 34) { this.hitHeroBand(this.x - 34, this.x + 34, y, 13, this.stats.atk * 1.4, 260); hit = this.hero.iframes > 0 || hit; }
       if (u >= 1 && !this.landed) { this.landed = true; w.emit({ shake: 6 }); sfx("boom"); w.fx("impacts/ground-slam", { x: this.x, y, light: 0.8, ramp: ELEMENTS.wind.ramp, dur: 0.6 }); }
+      if (u >= 1 && this.diving) { this.diving = false; this.squash(0.86, 1.14, 1.2); }
       if (t > T + 1.0) { this.landed = false; this.wantHover = 40; return true; }
       return false;
     }, { T });
@@ -966,16 +1022,18 @@ export class StormRoc extends Boss {
       const poly = [...lead, ...trail].map(([x, y]) => [sgn * x, y]);
       const leadPts = lead.map(([x, y]) => [sgn * x, y]);
       const dLead = (u, v) => { let d = 1e9; for (let i = 1; i < leadPts.length; i++) { const [ax, ay] = leadPts[i - 1], [bx2, by2] = leadPts[i], ex = bx2 - ax, ey = by2 - ay, q = clamp(((u - ax) * ex + (v - ay) * ey) / (ex * ex + ey * ey)); d = Math.min(d, Math.hypot(u - ax - ex * q, v - ay - ey * q)); } return d; };
-      // feather lines fan from the arm toward each tip; coverts along the arm are bright and scaled
+      // three clean feather bands: bright coverts along the arm (with a scalloped lower edge), the mid
+      // secondaries, and dark primaries whose tips burn gold; thin separations only on the primaries
       const paint = (u, v, d, sh) => {
         const x = u * sgn;
-        if (d > -1.2) return 0;
-        const dl = dLead(u, v);
-        if (dl < 10) return ((Math.round(x * 0.35) + Math.round(v * 0.35)) & 1) && dl > 2 ? RP[5] : RP[6];
-        const ang = Math.atan2(v + 30, x - 20), stripe = Math.abs(((ang * 11) % 1 + 1) % 1 - 0.5);
-        if (stripe < 0.08) return RP[1];
-        if (d > -5 && x > 40 && stripe < (hot ? 0.3 : 0.2)) return boltC;       // lightning at the feather tips
-        return cracks(sgn * 7, 1.2)(u, v, d);
+        if (d > -1.1) return 0;
+        const dl = dLead(u, v), sc = 2.2 * Math.abs(Math.sin(x * 0.42));
+        if (dl < 9 + sc) return dl > 7.6 + sc ? RP[4] : sh > 0.55 ? RP[7] : RP[6];
+        if (dl < 19 + sc * 0.8) return dl > 17.6 + sc * 0.8 ? RP[3] : sh > 0.5 ? RP[5] : RP[4];
+        if (d > -4.5) return boltC;
+        const ang = Math.atan2(v + 30, x - 20), stripe = Math.abs(((ang * 10) % 1 + 1) % 1 - 0.5);
+        if (stripe < 0.06) return RP[1];
+        return sh > 0.6 ? RP[3] : RP[2];
       };
     // the shape is centred on the wing, not the body, so the sculpt box stays small
     const cx = sgn * 62, cy = -6;
@@ -1029,11 +1087,11 @@ export class StormRoc extends Boss {
       sculpt(p, bx, by + 14, (u, v) => { const q = (u * dx + v * dy) / len, px = Math.abs(-u * dy + v * dx); return q < 0 ? 9 : q > 1 ? 9 : px - (3 + 2.5 * Math.sin(q * Math.PI)); }, { ramp: RP, r: len + 6, tint: flash, soft: 3, paint: (u, v) => ((u * dx + v * dy) / len > 0.84 ? boltC : 0) });
     }
     // body: a deep chest of storm feathers, a pale scaled breast
-    sculpt(p, bx, by, (u, v) => Math.min(sd.ellipse(u, v - 2, 17, 23), sd.ellipse(u, v - 16, 12, 10)), { ramp: RP, r: 30, tint: flash, soft: 7, rim: RP[7], paint: (u, v, d) => (Math.abs(u) < 10 && v > -6 && v < 18 && d < -2 && ((Math.round(u * 0.45 + v * 0.2) + Math.round(v * 0.45)) & 1) ? RP[6] : cracks(3)(u, v, d)) });
+    sculpt(p, bx, by, (u, v) => Math.min(sd.ellipse(u, v - 2, 17, 23), sd.ellipse(u, v - 16, 12, 10)), { ramp: RP, r: 30, tint: flash, soft: 7, rim: RP[7], paint: (u, v, d, sh) => { if (d > -1.5) return 0; if (Math.abs(u) < 11 && v > -8 && v < 20) { const ch = ((v - Math.abs(u) * 0.6) / 5) % 1; return ch > 0 && ch < 0.2 ? RP[5] : RP[7]; } return 0; } });
     // golden talons
     for (const o of [-6, 6]) { const tx = bx + o, ty = by + 22; energy(p, tx, ty, tx, ty + 7, BEAK[4], BEAK[2], 1, 0.1); for (const c of [-2, 0, 2]) p.put(Math.round(tx + c), Math.round(ty + 8), BEAK[5]); }
     // head in profile toward the hero, with a crest of living bolts
-    const hx = bx + f * 4, hy = by - 30 + (a === "thunder" ? -3 : 0);
+    const hx = bx + f * 4, hy = by - 30 - bob + S(t * 2 - 0.8) * 4 + (a === "thunder" ? -3 : 0);
     for (let i = 0; i < 6; i++) { const an = -Math.PI / 2 - f * (0.35 + i * 0.27), L = 16 + i * 3; let x = hx - f * 3, y = hy - 5; for (let s2 = 0; s2 < 4; s2++) { const nx = x + C(an) * L / 4 + (Math.random() - 0.5) * 3, ny = y + S(an) * L / 4 + (Math.random() - 0.5) * 2; energy(p, x, y, nx, ny, boltC, glowC, 1, 0.3); x = nx; y = ny; } }
     sculpt(p, hx, hy, (u, v) => Math.min(sd.ellipse(u, v, 12, 10.5), sd.ellipse(u + f * 3, v + 8, 9, 7)), { ramp: RP, r: 14, tint: flash, soft: 5, rim: RP[7] });
     const open = a === "thunder" || a === "phase" || a === "intro" ? 3 : 0.5;

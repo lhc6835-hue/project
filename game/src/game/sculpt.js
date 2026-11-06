@@ -2,18 +2,43 @@
 // the upper left (normals from the distance gradient, rounded toward the middle), quantized to a colour ramp
 // with ordered dither, then outlined. Lets a boss be built from big chunky "rocks" and "cloth" that read as
 // solid volumes at any angle.
-import { hex, noise2 } from "../px.js";
+import { hex, noise2, mix } from "../px.js";
 
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16 - 0.5);
 const LX = -0.55, LY = -0.7, LZ = 0.46;
 
+// Modern cel look: a few clean tone bands (no checkerboard dither), shadows pushed cool and lights warm,
+// outlines in a deep hue of the shape's own colour instead of black.
+const COOL = hex("#241a5c"), WARM = hex("#fff0c4"), BANDS = [0.2, 0.46, 0.72, 0.9];
+const shifted = new WeakMap();
+export function hueRamp(R) {
+  let H = shifted.get(R);
+  if (!H) {
+    const n = R.length;
+    H = R.map((c, i) => { const t = n > 1 ? i / (n - 1) : 1; return t < 0.5 ? mix(c, COOL, (0.5 - t) * 0.55) : mix(c, WARM, (t - 0.5) * 0.3); });
+    H.outline = mix(H[0], hex("#05040a"), 0.45);
+    shifted.set(R, H);
+  }
+  return H;
+}
+/** Shade 0..1 → a ramp index in a handful of bands. */
+function band(shade, n) {
+  let k = 0; while (k < BANDS.length && shade > BANDS[k]) k++;
+  return Math.round((k / BANDS.length) * (n - 1));
+}
+
+const ROCK_MEMO = new Map();
 export const sd = {
   ellipse: (u, v, rx, ry) => { const k = Math.hypot(u / rx, v / ry); return (k - 1) * Math.min(rx, ry); },
   box: (u, v, hw, hh, r = 0) => { const qx = Math.abs(u) - hw + r, qy = Math.abs(v) - hh + r; return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r; },
   /** A lumpy rock: an ellipse whose rim wobbles with seeded noise (faceted by rounding the angle). */
   rock: (u, v, rx, ry, seed = 1, rough = 0.18, facets = 7) => {
-    const a = Math.atan2(v / ry, u / rx), fa = Math.round(a / (Math.PI * 2) * facets) / facets * Math.PI * 2;
-    const w = 1 + rough * (noise2(Math.cos(fa) * 2 + seed, Math.sin(fa) * 2 + seed, seed) - 0.5) * 2;
+    const a = Math.atan2(v / ry, u / rx), fi = Math.round(a / (Math.PI * 2) * facets);
+    // the wobble only depends on which facet we are in: remember it instead of sampling noise per pixel
+    const key = seed * 4096 + facets * 64 + (fi + 32);
+    let nz = ROCK_MEMO.get(key);
+    if (nz === undefined) { const fa = fi / facets * Math.PI * 2; nz = noise2(Math.cos(fa) * 2 + seed, Math.sin(fa) * 2 + seed, seed); ROCK_MEMO.set(key, nz); }
+    const w = 1 + rough * (nz - 0.5) * 2;
     return (Math.hypot(u / rx, v / ry) - w) * Math.min(rx, ry);
   },
   poly: (u, v, pts) => {
@@ -35,9 +60,9 @@ export const sd = {
  *   tint (hit flash), rim: colour for a 1 px lit rim on the light side }
  */
 export function sculpt(p, cx, cy, shape, o) {
-  const R = o.ramp, n = R.length, rot = o.rot ?? 0, c = Math.cos(rot), s = Math.sin(rot);
+  const R = o.flat ? o.ramp : hueRamp(o.ramp), n = R.length, rot = o.rot ?? 0, c = Math.cos(rot), s = Math.sin(rot);
   const sx = (o.sx ?? 1) * (o.flip ? -1 : 1), sy = o.sy ?? 1, rad = Math.ceil(o.r ?? 40), a = o.alpha ?? 1;
-  const OL = o.outline ?? hex("#08070c"), soft = o.soft ?? 5;
+  const OL = o.outline ?? R.outline ?? hex("#08070c"), soft = o.soft ?? 5;
   const X0 = Math.floor(cx - rad), Y0 = Math.floor(cy - rad), W = rad * 2 + 2;
   const D = new Float32Array(W * W);
   for (let j = 0; j < W; j++) for (let i = 0; i < W; i++) {
@@ -58,8 +83,8 @@ export function sculpt(p, cx, cy, shape, o) {
     const h = Math.min(1, -d / soft), nz = h, k = Math.sqrt(Math.max(0, 1 - nz * nz));
     const nx = gx * k, ny = gy * k;
     let shade = Math.max(0, nx * LX + ny * LY + nz * LZ) * 1.15 + 0.08;
-    shade += BAYER[((Y & 3) << 2) | (X & 3)] * 0.1;
-    let ci = Math.max(0, Math.min(n - 1, Math.floor(shade * (n - 0.01))));
+    if (o.dither) shade += BAYER[((Y & 3) << 2) | (X & 3)] * 0.1;
+    let ci = o.dither ? Math.max(0, Math.min(n - 1, Math.floor(shade * (n - 0.01)))) : band(shade, n);
     let col = R[ci];
     if (o.rim && d > -1.2 && nx * LX + ny * LY > 0.35) col = o.rim;
     if (o.paint) { const pc = o.paint(((X + 0.5 - cx) * c + (Y + 0.5 - cy) * s) / sx, (-(X + 0.5 - cx) * s + (Y + 0.5 - cy) * c) / sy, d, shade); if (pc) col = pc; }
