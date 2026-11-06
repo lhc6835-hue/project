@@ -11,6 +11,7 @@ import { Enemy, EnemyShot } from "./enemies.js";
 import { Scarf } from "./animator.js";
 import { sculpt, sd, glow, energy, ramp } from "./sculpt.js";
 import { sfx } from "../core/audio.js";
+import { Skeleton, part, keys, Strand } from "./boss_rig.js";
 
 const S = Math.sin, C = Math.cos;
 const ease = { out: (u) => 1 - (1 - u) ** 3, in: (u) => u * u * u, io: (u) => (u < 0.5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2), back: (u) => 1 + 2.7 * (u - 1) ** 3 + 1.7 * (u - 1) ** 2 };
@@ -104,13 +105,32 @@ const MAGMA = ramp(["#3a0a06", "#7a1a0a", "#c43a10", "#f26a1a", "#ffae35", "#ffe
 
 export class StoneGiant extends Boss {
   constructor(o) {
-    super({ r: 30, height: 140, shadowW: 90, ...o });
+    super({ r: 30, height: 120, shadowW: 96, ...o });
     this.name = "균열의 거신 테라곤"; this.title = "제5층의 수호자"; this.el = "earth"; this.speed = 24; this.ramp = ELEMENTS.earth.ramp;
-    this.introLen = 2.6; this.phaseLen = 1.8;
-    this.pose = { lean: 0, crouch: 0, armF: 0.1, armB: -0.1, reachF: 0, reachB: 0, head: 0, bob: 0 };
-    this.debris = Array.from({ length: 6 }, (_, i) => ({ a: (i / 6) * Math.PI * 2, r: 44 + (i % 3) * 8, y: -60 + (i % 2) * 18, s: 2.5 + (i % 3) }));
-    this.fly = [];
-    this.flip = true;
+    this.introLen = 2.8; this.phaseLen = 1.8;
+    const K = 1.3, PI = Math.PI;
+    // a hunched, knuckle-walking colossus: short legs, a great chest leaning forward, huge forearms
+    const SP = PI - 0.4;
+    this.sk = new Skeleton([
+      { name: "hips", len: 0 },
+      { name: "spine", parent: "hips", at: [0, 0], len: 34 * K, a0: SP, stiff: 0.8 },
+      { name: "head", parent: "spine", at: [-9 * K, -1 * K], fromEnd: true, len: 14 * K, a0: -1.2, stiff: 0.6 },
+      { name: "shF", parent: "spine", at: [4 * K, -7 * K], fromEnd: true, len: 24 * K, a0: -0.05 - SP },
+      { name: "foreF", parent: "shF", fromEnd: true, len: 25 * K, a0: 0.2, stiff: 0.8 },
+      { name: "fistF", parent: "foreF", fromEnd: true, len: 7 * K, a0: 0, stiff: 0.6 },
+      { name: "thighF", parent: "hips", at: [-6 * K, 0], len: 14 * K, a0: 0.5 },
+      { name: "shinF", parent: "thighF", fromEnd: true, len: 15 * K, a0: -0.75 },
+      { name: "thighN", parent: "hips", at: [6 * K, 0], len: 14 * K, a0: 0.5 },
+      { name: "shinN", parent: "thighN", fromEnd: true, len: 15 * K, a0: -0.75 },
+      { name: "shN", parent: "spine", at: [5 * K, -9 * K], fromEnd: true, len: 24 * K, a0: 0.15 - SP },
+      { name: "foreN", parent: "shN", fromEnd: true, len: 25 * K, a0: 0.25, stiff: 0.8 },
+      { name: "fistN", parent: "foreN", fromEnd: true, len: 7 * K, a0: 0, stiff: 0.6 },
+    ]);
+    this.K = K; this.hipY = -26 * K;
+    this.sk.root.y = this.hipY + 40;
+    this.debris = Array.from({ length: 6 }, (_, i) => ({ a: (i / 6) * Math.PI * 2, r: 52 + (i % 3) * 8, y: -70 + (i % 2) * 18, s: 2.5 + (i % 3) }));
+    this.fly = []; this.flip = true; this.walkT = 0; this.stepSide = 0;
+    this.moss = Array.from({ length: 4 }, () => new Strand(4, 3, 200, 0.9));
   }
   onPhase() {
     const w = this.world;
@@ -223,48 +243,97 @@ export class StoneGiant extends Boss {
   }
 
   // ---- motion
-  animate(dt) {
-    const P = this.pose, t = this.t, A = this.atk, st = this.state;
-    let g = { lean: 0.04 * S(t * 1.3), crouch: 1 + S(t * 1.6) * 1.5, armF: 0.12 + 0.06 * S(t * 1.6 - 0.5), armB: -0.1 + 0.05 * S(t * 1.6 - 1), reachF: 0, reachB: 0, head: 0.04 * S(t * 0.7) };
-    if (this.moving) { const w = t * 5; g = { ...g, lean: 0.1, crouch: 2 + Math.abs(S(w)) * 3, armF: 0.35 * S(w), armB: -0.35 * S(w) }; if (Math.floor(t * 10 / Math.PI) % 2 !== Math.floor((t - dt) * 10 / Math.PI) % 2) { this.world.emit({ shake: 2 }); sfx("door"); } }
+  /** Target pose for this instant, as bone offsets from rest plus root x / y / lean. */
+  targetPose() {
+    const t = this.t, st = this.state, A = this.atk, K = this.K, f = this.flip ? -1 : 1;
+    const br = Math.sin(t * 1.7), look = this.hero ? clamp((this.hero.y - this.y) / 80, -1, 1) * 0.15 : 0;
+    // idle: breathing chest, shoulders rolling, fists planted, head following the hero
+    let P = { spine: 0.04 * br, head: look - 0.04 * br, shN: -0.05 * br, shF: 0.04 * br, foreN: 0.05 * br, foreF: -0.04 * br, x: 0, y: this.hipY + 1.5 * br, lean: 0 };
+    if (this.moving) {
+      // a knuckle-walk: the fists swing forward and plant, the legs follow, the whole body rolls with each step
+      const w = this.walkT * 4.2, s1 = Math.sin(w), c1 = Math.cos(w);
+      P = { ...P, spine: 0.05 + 0.04 * c1, shN: -0.45 * s1, foreN: 0.25 * Math.max(0, s1), shF: 0.45 * s1, foreF: 0.25 * Math.max(0, -s1), thighN: 0.4 * s1, shinN: -0.35 * Math.max(0, -s1), thighF: -0.4 * s1, shinF: -0.35 * Math.max(0, s1), y: this.hipY - Math.abs(c1) * 3 * K, lean: 0.03 * c1, head: look + 0.05 * c1 };
+    }
     if (st === "attack" && A) {
       const u = A.t;
       if (A.name === "slam") {
-        const T = A.T, up = ease.out(seg(u, 0, T * 0.75)), down = ease.in(seg(u, T * 0.82, T));
-        g.armF = lerp(lerp(0.1, -2.7, up), 0.9, down); g.lean = lerp(lerp(0, -0.18, up), 0.42, down); g.crouch = lerp(lerp(1, -3, up), 14, down);
-        g.reachF = down * 40; g.head = lerp(-0.2 * up, 0.25, down);
-        if (u > T) { const r = seg(u, T + 0.2, T + 0.7); g.armF = lerp(0.9, 0.12, ease.io(r)); g.lean = lerp(0.42, 0, ease.io(r)); g.crouch = lerp(14, 1, ease.io(r)); g.reachF = lerp(40, 0, ease.io(r)); }
+        // rear up, both fists high over the head, then come down with everything
+        const T = A.T, reach = this.aim ? clamp(f * (this.aim[0] - this.x) - 62 * K, -10, 40) : 0;
+        P = keys([
+          [0, P],
+          [T * 0.72, { spine: -0.75, head: -0.45, shN: 3.0, foreN: 0.5, shF: 2.9, foreF: 0.55, thighN: -0.2, thighF: 0.15, shinN: 0.1, y: this.hipY - 6 * K, lean: -0.05, x: -4 }, "out"],
+          [T * 0.88, { spine: -0.82, head: -0.5, shN: 3.15, foreN: 0.6, shF: 3.05, foreF: 0.65, thighN: -0.22, thighF: 0.15, y: this.hipY - 7 * K, x: -5 }, "io"],
+          [T, { spine: 0.42, head: 0.35, shN: 0.15, foreN: -0.1, shF: 0.05, foreF: -0.1, thighN: 0.55, shinN: -0.75, thighF: 0.25, shinF: -0.6, y: this.hipY + 9 * K, lean: 0.06, x: reach }, "in"],
+          [T + 0.18, { spine: 0.5, head: 0.45, shN: 0.1, foreN: -0.15, shF: 0, foreF: -0.15, thighN: 0.6, shinN: -0.8, thighF: 0.3, shinF: -0.65, y: this.hipY + 10 * K, x: reach }, "back"],
+          [T + 0.75, { ...P, x: reach * 0.3 }, "io"],
+        ], u);
       } else if (A.name === "sweep") {
-        const T = A.T, wind = ease.out(seg(u, 0, T * 0.8)), go = ease.in(seg(u, T * 0.85, T)), rec = ease.io(seg(u, T + 0.1, T + 0.6));
-        g.armB = lerp(lerp(-0.1, -2.2, wind), 1.6, go); g.lean = lerp(lerp(0, -0.22, wind), 0.35, go); g.crouch = lerp(1, 8, go); g.reachB = go * 30;
-        if (u > T) { g.armB = lerp(1.6, -0.1, rec); g.lean = lerp(0.35, 0, rec); g.crouch = lerp(8, 1, rec); g.reachB = lerp(30, 0, rec); }
+        // wind the hammer arm far back, twist, and swing it low across the floor
+        const T = A.T;
+        P = keys([
+          [0, P],
+          [T * 0.8, { spine: -0.25, head: -0.2, shF: -1.6, foreF: 0.6, shN: 0.35, lean: -0.1, y: this.hipY - 2 }, "out"],
+          [T, { spine: 0.35, head: 0.2, shF: 2.1, foreF: -0.1, shN: -0.3, lean: 0.12, thighN: 0.35, shinN: -0.5, y: this.hipY + 6 * K }, "in"],
+          [T + 0.2, { spine: 0.4, head: 0.25, shF: 2.45, foreF: -0.2, shN: -0.35, lean: 0.14, thighN: 0.35, shinN: -0.5, y: this.hipY + 6 * K }, "back"],
+          [T + 0.7, P, "io"],
+        ], u);
       } else if (A.name === "rain") {
-        const lift = ease.out(seg(u, 0, 0.5)), rec = ease.io(seg(u, 1.4, 2.4));
-        g.armF = lerp(-2.6 * lift, 0.1, rec); g.armB = lerp(-2.4 * lift, -0.1, rec); g.lean = lerp(-0.25 * lift, 0, rec); g.head = -0.35 * lift * (1 - rec); g.crouch = lerp(-4 * lift, 1, rec);
+        // stand tall and beat the chest, roaring at the ceiling until it falls
+        const beat = Math.sin(u * 16);
+        const tall = { spine: -0.85, head: -0.55, shN: 1.4 + 0.5 * beat, foreN: 1.6 - 0.4 * beat, shF: 1.4 - 0.5 * beat, foreF: 1.6 + 0.4 * beat, y: this.hipY - 7 * K };
+        P = keys([[0, P], [0.4, tall, "out"], [1.6, tall], [2.3, P, "io"]], u);
+        if (u > 0.4 && u < 1.6) { P.shN = tall.shN; P.foreN = tall.foreN; P.shF = tall.shF; P.foreF = tall.foreF; }
       } else if (A.name === "spikes") {
-        const up = ease.out(seg(u, 0, 0.4)), dn = ease.in(seg(u, 0.4, 0.5)), rec = ease.io(seg(u, 0.9, 1.6));
-        g.armF = lerp(lerp(0.1, -1.8, up), 1.2, dn); g.crouch = lerp(lerp(1, 0, up), 12, dn); g.lean = lerp(0.3 * dn, 0, rec);
-        g.armF = lerp(g.armF, 0.12, rec); g.crouch = lerp(g.crouch, 1, rec); g.reachF = dn * (1 - rec) * 28;
+        // lift one fist and punch it into the ground; the spikes run out from there
+        P = keys([
+          [0, P],
+          [0.4, { spine: -0.3, head: -0.2, shN: 2.6, foreN: 0.7, y: this.hipY - 3 }, "out"],
+          [0.5, { spine: 0.45, head: 0.3, shN: 0.2, foreN: -0.1, thighN: 0.5, shinN: -0.7, y: this.hipY + 8 * K }, "in"],
+          [0.65, { spine: 0.5, head: 0.35, shN: 0.15, foreN: -0.15, thighN: 0.5, shinN: -0.7, y: this.hipY + 9 * K }, "back"],
+          [1.4, P, "io"],
+        ], u);
       }
     }
-    if (st === "intro") { const u = this.introT; g.crouch = lerp(30, 1, ease.out(seg(u, 0.4, 1.8))); g.head = -0.4 * seg(u, 1.8, 2.1) * (1 - seg(u, 2.3, 2.6)); g.armF = -1.6 * seg(u, 1.8, 2.0) * (1 - seg(u, 2.3, 2.6)); g.armB = -1.5 * seg(u, 1.8, 2.0) * (1 - seg(u, 2.3, 2.6)); }
-    if (st === "phase") { const u = this.phaseT; const k = S(Math.min(1, u / this.phaseLen) * Math.PI); g.armF = -2.4 * k; g.armB = -2.2 * k; g.head = -0.5 * k; g.lean = -0.25 * k; g.crouch = -4 * k; }
-    if (st === "dying") { const u = this.dieT; g.lean = lerp(0, 0.6, ease.in(seg(u, 0, 1.6))); g.crouch = lerp(1, 26, ease.in(seg(u, 0, 1.6))); g.armF = 0.8; g.armB = 0.6; g.head = 0.6; }
-    if (this.flinch > 0) g.lean -= 0.06;
-    for (const k in g) P[k] += (g[k] - P[k]) * (1 - Math.exp(-((st === "attack" || st === "dying") ? 30 : 9) * dt));
-    P.bob = S(t * 1.6) * 1.2;
+    if (st === "intro") {
+      // rises out of the ground, stands up, roars
+      const u = this.introT;
+      P = keys([
+        [0, { spine: 0.6, head: 0.6, shN: 0.4, shF: 0.4, y: this.hipY + 70, lean: 0.1 }],
+        [1.6, { spine: 0.2, head: 0.3, y: this.hipY + 4 }, "out"],
+        [2.0, { spine: -0.8, head: -0.6, shN: 1.9, foreN: 1.0, shF: 1.9, foreF: 1.0, y: this.hipY - 8 * K }, "io"],
+        [2.5, { spine: -0.85, head: -0.65, shN: 2.1, foreN: 1.1, shF: 2.1, foreF: 1.1, y: this.hipY - 8 * K }],
+        [2.8, P, "io"],
+      ], u);
+    }
+    if (st === "phase") {
+      const u = this.phaseT, roar = { spine: -0.9, head: -0.7, shN: 2.4, foreN: 0.2, shF: 2.4, foreF: 0.2, y: this.hipY - 8 * K };
+      P = keys([[0, P], [0.35, roar, "out"], [1.4, { ...roar, spine: -0.95 }], [1.8, P, "io"]], u);
+    }
+    if (st === "dying") {
+      const u = this.dieT;
+      P = keys([[0, P], [0.4, { spine: -0.6, head: -0.6, shN: 1.8, shF: 1.6, y: this.hipY - 4 }, "out"], [1.6, { spine: 0.9, head: 0.8, shN: 0.6, foreN: 0.8, shF: 0.4, foreF: 0.8, thighN: 1.2, shinN: -1.6, thighF: 1.0, shinF: -1.5, y: this.hipY + 22 * K, lean: 0.1 }, "in"]], u);
+    }
+    if (this.flinch > 0) { P.spine = (P.spine ?? 0) - 0.12; P.head = (P.head ?? 0) - 0.2; }
+    return P;
+  }
+
+  animate(dt) {
+    if (this.moving) this.walkT += dt;
+    const P = this.targetPose(), fast = this.state === "attack" || this.state === "dying";
+    this.sk.drive(P, dt, fast ? 150 : 70, fast ? 15 : 11, { x: P.x ?? 0, y: P.y ?? this.hipY, lean: P.lean ?? 0 });
+    // heavy footfalls shake the room
+    if (this.moving) { const s = Math.sign(Math.sin(this.walkT * 4.2)); if (s !== this.stepSide) { this.stepSide = s; this.world.emit({ shake: 2 }); sfx("door"); } }
   }
 
   dying(dt) {
     const w = this.world, u = this.dieT;
-    // chain of bursts across the body, then it falls apart
     if (Math.floor(u * 7) !== Math.floor((u - dt) * 7) && u < 1.6) {
-      w.fx(Math.random() < 0.5 ? "explosions/small-explosion" : "impacts/crit-hit", { x: this.x + (Math.random() - 0.5) * 60, y: this.y + 1, z: 20 + Math.random() * 70, light: 1, dur: 0.8, top: true, opts: { size: 0.7 } });
+      w.fx(Math.random() < 0.5 ? "explosions/small-explosion" : "impacts/crit-hit", { x: this.x + (Math.random() - 0.5) * 70, y: this.y + 1, z: 20 + Math.random() * 80, light: 1, dur: 0.8, top: true, opts: { size: 0.7 } });
       w.emit({ shake: 4 }); sfx("boom");
     }
-    if (u >= 1.6 && !this.broke) {
+    if (u >= 1.7 && !this.broke) {
       this.broke = true;
-      for (let i = 0; i < 26; i++) this.fly.push({ x: this.x + (Math.random() - 0.5) * 80, y: this.y - Math.random() * 100, vx: (Math.random() - 0.5) * 260, vy: -80 - Math.random() * 200, r: 4 + Math.random() * 7, t: 0, ground: this.y + (Math.random() - 0.5) * 40 });
+      for (let i = 0; i < 28; i++) this.fly.push({ x: this.x + (Math.random() - 0.5) * 90, y: this.y - Math.random() * 90, vx: (Math.random() - 0.5) * 260, vy: -80 - Math.random() * 220, r: 4 + Math.random() * 8, t: 0, ground: this.y + (Math.random() - 0.5) * 40 });
       w.fx("explosions/big-explosion", { x: this.x, y: this.y + 2, light: 1.2 });
       this.finishDeath();
     }
@@ -273,103 +342,85 @@ export class StoneGiant extends Boss {
   // ---- drawing
   draw(p) {
     if (this.dead && this.broke) return this.drawDebris(p, 1);
-    const K = 1.35, P = this.pose, f = this.flip ? -1 : 1, hot = this.phase === 2, t = this.t;
-    const X = (lx) => this.x + f * lx * K;
-    const base = this.y - this.z + (P.crouch * 0.5 + P.bob) * K;
+    const K = this.K, f = this.flip ? -1 : 1, hot = this.phase === 2, t = this.t;
+    const W = this.sk.solve(this.x, this.y - this.z, f);
     const flash = this.hitFlash > 0 ? hex("#ffffff") : null;
-    const intro = this.state === "intro" ? ease.out(seg(this.introT, 0.2, 1.8)) : 1;
-    const rise = (y) => y + (1 - intro) * 130;
-    const R = hot ? ROCK_HOT : ROCK, glowC = hot ? hex("#ff6a2a") : hex("#ffc24a"), coreR = hot ? MAGMA : CRYS;
-    const lean = P.lean, wy = base - 40 * K, pulse = (S(t * (hot ? 8 : 4)) + 1) / 2;
-    // a point on the upper body (local to the feet), tilted about the waist by the lean
-    const T = (lx, ly) => { const dy = (ly + 40) * K, dx = lx * K; return [this.x + f * (dx * C(lean) - dy * S(lean)), wy + dx * S(lean) + dy * C(lean) + P.crouch * 0.6 * K]; };
-    const armAt = (sh, ang, len, reach) => [sh[0] + f * S(ang) * (len + reach) * K, sh[1] + C(ang) * (len + reach) * K];
-    const shB = T(-22, -80), shF = T(25, -78);
-    const elbB = armAt(shB, P.armB, 15, 0), handB = armAt(shB, P.armB, 32, P.reachB);
-    const elbF = armAt(shF, P.armF, 16, 0), handF = armAt(shF, P.armF, 34, P.reachF);
-    const legY = base - 23 * K;
-    const link = (a, b) => energy(p, a[0], rise(a[1]), b[0], rise(b[1]), hot ? hex("#ffe27a") : hex("#fff6c4"), glowC, 0, 0.18 + 0.12 * pulse);
-    const rock = (x, y, rx, ry, seed, o = {}) => sculpt(p, x, rise(y), (u, v) => sd.rock(u, v, rx * K, ry * K, seed, o.rough ?? 0.2, o.facets ?? 7),
-      { ramp: o.ramp ?? R, r: Math.max(rx, ry) * K * 1.35 + 2, rot: o.rot ?? 0, tint: flash, flip: this.flip, paint: o.paint, glow: o.glow, rim: o.rim });
-    const shard = (x, y, h, w2, rot) => sculpt(p, x, rise(y), (u, v) => sd.poly(u, v, [[0, -h * 0.62], [w2, 0], [0, h * 0.38], [-w2, 0]]), { ramp: coreR, r: h + 2, rot, glow: [glowC, 0.35], soft: 2, tint: flash });
-    // magma cracks: thin glowing veins across a rock's face
-    const veins = (seed, dens) => (u, v) => {
-      const n = noise2(u * 0.09 + seed, v * 0.09, seed);
-      return Math.abs(n - 0.5) < dens ? (hot ? MAGMA[3 + Math.round(pulse * 2)] : CRYS[2 + Math.round(pulse * 2)]) : 0;
-    };
-    // --- far side: back leg, back arm with the hammer, back shoulder
-    link([X(-11), legY], [X(-4), base - 40 * K]);
-    rock(X(-12), base - 9 * K, 13, 8, 3);
-    rock(X(-11), legY, 10, 13, 4, { paint: hot ? veins(4, 0.03) : 0 });
-    link(shB, elbB); link(elbB, handB);
-    rock(elbB[0], elbB[1], 8, 12, 9, { rot: P.armB * f });
-    sculpt(p, handB[0], rise(handB[1]), (u, v) => sd.box(u, v, 10 * K, 15 * K, 3), { ramp: R, r: 24 * K, rot: P.armB * f, tint: flash,
-      paint: (u, v) => (Math.abs(v + 4 * K) < 2 ? coreR[3] : Math.abs(v - 8 * K) < 1 ? R[1] : 0) });
-    rock(shB[0], shB[1], 15, 13, 11);
-    // --- pelvis and the great chest with its crystal heart
-    link([X(12), legY], [X(4), base - 40 * K]);
-    rock(X(-2), base - 41 * K, 21, 9, 5);
-    const ch = T(0, -61);
-    link(T(6, -78), T(9, -92));
-    sculpt(p, ch[0], rise(ch[1]), (u, v) => sd.rock(u, v, 30 * K, 25 * K, 7, 0.14, 9), { ramp: R, r: 42 * K, rot: lean * f, tint: flash, flip: this.flip, rim: hot ? hex("#7a3a22") : null,
-      paint: (u, v) => {
-        const cu = u - 6 * K, cv = v + 2 * K, rr = Math.hypot(cu, cv), a = Math.atan2(cv, cu);
-        // rift cracks radiating from the heart
-        const arm = Math.abs(((a + noise2(rr * 0.12, 3, 2) * 0.9) % 1.05 + 1.05) % 1.05 - 0.52) < 0.06 + 2.2 / (rr + 4);
-        if (rr > 9 * K && rr < (hot ? 32 : 26) * K && arm) return hot ? MAGMA[3 + Math.round(pulse * 2)] : CRYS[2 + Math.round(pulse * 2)];
-        if (!hot && v < -15 * K && noise2(u * 0.22, v * 0.22, 8) > 0.5) return MOSS[Math.min(4, 2 + Math.round(noise2(u, v, 2) * 2))];
-        return 0;
-      } });
-    const heart = T(6, -63);
-    glow(p, heart[0], rise(heart[1]), (24 + pulse * 8) * K, glowC, 0.2 + pulse * 0.12);
-    sculpt(p, heart[0], rise(heart[1]), (u, v) => sd.poly(u, v, [[0, -10 * K], [7 * K, -1], [0, 10 * K], [-7 * K, -1]]), { ramp: coreR, r: 15 * K, tint: flash, glow: [glowC, 0.55], soft: 3 });
-    // --- head: a heavy brow-stone with a burning visor-eye, set low between the shoulders
-    const hd = T(9, -93), hr = (lean + P.head) * f;
-    sculpt(p, hd[0], rise(hd[1] + 3 * K), (u, v) => sd.rock(u, v, 10 * K, 6 * K, 17, 0.12, 6), { ramp: R, r: 16 * K, rot: hr, tint: flash, flip: this.flip }); // jaw
-    sculpt(p, hd[0], rise(hd[1] - 2 * K), (u, v) => sd.rock(u, v, 12 * K, 8 * K, 13, 0.14, 6), { ramp: R, r: 18 * K, rot: hr, tint: flash, flip: this.flip, rim: R[5],
-      paint: (u, v) => {
-        if (v > 1.2 * K && v < 3.6 * K && u > -1 * K && u < 9.5 * K) return v < 2.4 * K ? (hot ? hex("#ffd0a0") : hex("#ffffff")) : (hot ? hex("#ff5030") : hex("#ffd84a")); // the visor slit
-        if (v < -4 * K && !hot && noise2(u * 0.3, v * 0.3, 4) > 0.45) return MOSS[3];
-        return 0;
-      } });
-    glow(p, hd[0] + f * 5 * K, rise(hd[1]), 14 * K, hot ? hex("#ff5030") : hex("#ffe27a"), 0.55);
-    // --- front leg
-    rock(X(12), legY, 11, 14, 6, { paint: hot ? veins(6, 0.03) : 0 });
-    rock(X(14), base - 9 * K, 15, 9, 2);
-    // --- front shoulder: the biggest boulder, mossy, crowned with crystals
-    rock(shF[0], shF[1], 19, 16, 15, { rim: hot ? hex("#7a3a22") : null, paint: (u, v) => (!hot && v < -6 * K && noise2(u * 0.2, v * 0.2, 5) > 0.42 ? MOSS[Math.min(4, 2 + Math.round(noise2(u, v, 7) * 2))] : hot ? veins(15, 0.025)(u, v) : 0) });
-    for (const [ox, h, a] of [[-7, 18, -0.4], [2, 26, 0.05], [10, 15, 0.45]]) shard(shF[0] + f * ox * K, shF[1] - (14 + h * 0.35) * K, h * K, 3.4 * K, a * f);
-    // --- front arm and the crystal fist (it flies out on its tether to slam)
-    link(shF, elbF); link(elbF, handF);
-    rock(elbF[0], elbF[1], 9, 13, 21, { rot: P.armF * f });
-    rock(handF[0], handF[1], 17, 15, 23, { rot: P.armF * f * 0.6, rim: hot ? hex("#7a3a22") : null });
-    for (const [ox, oy, h] of [[6, -10, 10], [12, -2, 9], [8, 7, 8]]) sculpt(p, handF[0] + f * ox * K, rise(handF[1] + oy * K), (u, v) => sd.poly(u, v, [[h * K, 0], [0, -2.8 * K], [-h * 0.4 * K, 0], [0, 2.8 * K]]), { ramp: coreR, r: (h + 2) * K, rot: (0.3 + P.armF * 0.5) * f, flip: this.flip, glow: [glowC, 0.35], soft: 2, tint: flash });
-    if (P.reachF > 10) glow(p, handF[0], rise(handF[1]), 26 * K, glowC, 0.3);
+    const R = hot ? ROCK_HOT : ROCK, glowC = hot ? hex("#ff6a2a") : hex("#ffc24a"), core = hot ? MAGMA : CRYS;
+    const pulse = (S(t * (hot ? 8 : 4)) + 1) / 2;
+    const vein = hot ? MAGMA[3 + Math.round(pulse * 2)] : CRYS[2 + Math.round(pulse * 2)], veinDk = hot ? MAGMA[1] : CRYS[1];
+    // cracks: straight chiselled seams in part space that glow
+    const seams = (list) => (u, v) => { for (const [a, b, c, d] of list) { const ex = c - a, ey = d - b, q = clamp(((u - a) * ex + (v - b) * ey) / (ex * ex + ey * ey)), dd = Math.hypot(u - a - ex * q, v - b - ey * q); if (dd < 0.75) return vein; if (dd < 1.5) return veinDk; } return 0; };
+    const mossy = (seed) => (u, v, d, sh) => (!hot && sh > 0.82 && noise2(u * 0.25 + seed, v * 0.25, seed) > 0.45 ? MOSS[Math.min(4, 2 + Math.round(noise2(u, v, seed) * 2))] : 0);
+    const both = (...fs) => (u, v, d, sh) => { for (const fn of fs) { const c = fn(u, v, d, sh); if (c) return c; } return 0; };
+    const slab = (hw, hh, r = 3) => (u, v) => sd.box(u, v, hw, hh, r);
+    const limb = (len, w0, w1) => (u, v) => { const k = clamp(v / len); return Math.max(Math.abs(u) - (w0 + (w1 - w0) * k), Math.abs(v - len / 2) - len / 2 - 2); };
+    const O = (extra) => ({ ramp: R, tint: flash, soft: 4, rim: R[R.length - 1], ...extra });
+    const rise = this.state === "intro" ? 0 : 0;
+    // far leg
+    part(p, W.thighF, f, limb(W.thighF.len, 9 * K, 7.5 * K), O({ r: 30 * K }));
+    part(p, W.shinF, f, limb(W.shinF.len, 7 * K, 8.5 * K), O({ r: 30 * K }));
+    part(p, W.shinF, f, slab(10 * K, 4 * K, 2), O({ r: 16 * K, at: 1, off: [5 * K, -2] }));
+    // far arm: the stone hammer
+    part(p, W.shF, f, limb(W.shF.len, 8 * K, 7 * K), O({ r: 34 * K }));
+    part(p, W.foreF, f, limb(W.foreF.len, 6.5 * K, 8 * K), O({ r: 36 * K }));
+    part(p, W.fistF, f, (u, v) => sd.box(u, v - 6 * K, 11 * K, 9 * K, 3), O({ r: 22 * K, paint: (u, v) => (Math.abs(v - 4 * K) < 1.6 ? core[3] : Math.abs(v - 9 * K) < 0.8 ? R[1] : 0) }));
+    // hips
+    part(p, W.spine, f, (u, v) => sd.box(u, v - 3 * K, 18 * K, 10 * K, 6), O({ r: 24 * K }));
+    // the great chest slab, cracked from the crystal heart outward
+    const chestCr = [[2, -6, 12, -18], [2, -6, -6, -20], [2, -6, 14, 2], [12, -18, 18, -24], [-6, -20, -14, -24], [14, 2, 20, 6]].map((q) => q.map((v) => v * K));
+    part(p, W.spine, f, (u, v) => Math.min(sd.box(u, v - 21 * K, 25 * K, 21 * K, 11), sd.box(u - 6 * K, v - 28 * K, 20 * K, 14 * K, 8)), O({ r: 46 * K, at: 0, paint: both((u, v) => seams(chestCr)(u, v - 26 * K), mossy(3)) }));
+    // a point on a bone: along it, and across it (+across = the bone's u side)
+    const at = (B, along, across) => [B.x + f * (along * Math.sin(B.a) + across * Math.cos(B.a)), B.y + along * Math.cos(B.a) - across * Math.sin(B.a)];
+    // crystals growing out of the back (the spine's +u side)
+    for (const [along, h, tilt] of [[14, 18, 0.35], [21, 26, 0.1], [28, 16, -0.15]]) {
+      const [cx, cy] = at(W.spine, along * K, 22 * K), dir = Math.atan2(cy - (W.spine.y + (W.spine.ey - W.spine.y) * 0.5), cx - (W.spine.x + (W.spine.ex - W.spine.x) * 0.5));
+      sculpt(p, cx, cy, (u, v) => sd.poly(u, v, [[-3.4 * K, 0], [0, -h * K], [3.4 * K, 0], [0, 4 * K]]), { ramp: core, r: (h + 6) * K, rot: -(dir + Math.PI / 2) + tilt * f, tint: flash, soft: 2, glow: [glowC, 0.35] });
+    }
+    // the heart, set in the front of the chest
+    const [hx, hy] = at(W.spine, 21 * K, -12 * K);
+    glow(p, hx, hy, (26 + pulse * 10) * K, glowC, 0.18 + pulse * 0.12);
+    sculpt(p, hx, hy, (u, v) => sd.poly(u, v, [[0, -9 * K], [6.5 * K, 0], [0, 9 * K], [-6.5 * K, 0]]), { ramp: core, r: 14 * K, tint: flash, glow: [glowC, 0.55], soft: 3 });
+    // near leg
+    part(p, W.thighN, f, limb(W.thighN.len, 9.5 * K, 8 * K), O({ r: 30 * K }));
+    part(p, W.shinN, f, limb(W.shinN.len, 7.5 * K, 9 * K), O({ r: 30 * K, paint: hot ? seams([[0, 4 * K, 2 * K, 14 * K]]) : 0 }));
+    part(p, W.shinN, f, slab(11 * K, 4.5 * K, 2), O({ r: 16 * K, at: 1, off: [5 * K, -2] }));
+    // near arm: pauldron boulder, forearm, the crystal fist
+    part(p, W.shN, f, limb(W.shN.len, 8 * K, 7 * K), O({ r: 34 * K }));
+    part(p, W.shN, f, (u, v) => sd.box(u, v - 1 * K, 13 * K, 11 * K, 6), O({ r: 26 * K, paint: both(mossy(5), seams([[-8 * K, -6 * K, 2 * K, 4 * K]])) }));
+    for (const [ox, h, a] of [[1, 13, 0.1], [7, 9, 0.5]]) part(p, W.shN, f, (u, v) => sd.poly(u, v, [[-3.2 * K, 0], [0, -h * K], [3.2 * K, 0], [0, 3 * K]]), { ramp: core, r: (h + 4) * K, off: [ox * K, -9 * K], tint: flash, soft: 2, glow: [glowC, 0.3] });
+    part(p, W.foreN, f, limb(W.foreN.len, 7 * K, 9 * K), O({ r: 36 * K, paint: seams([[0, 6 * K, -3 * K, 18 * K]]) }));
+    part(p, W.fistN, f, (u, v) => sd.box(u, v - 5 * K, 10 * K, 8.5 * K, 4), O({ r: 22 * K }));
+    for (const [ox, oy, h] of [[6, 2, 11], [0, 4, 13], [-6, 2, 10]]) part(p, W.fistN, f, (u, v) => sd.poly(u, v, [[-2.4 * K, 0], [0, h * K], [2.4 * K, 0]]), { ramp: core, r: (h + 3) * K, off: [ox * K, oy * K], tint: flash, soft: 2, glow: [glowC, 0.3] });
+    // head: skull block, a heavy brow ridge on top, a jaw below, two burning eyes under the brow
+    part(p, W.head, f, (u, v) => sd.box(u, v - 8 * K, 9.5 * K, 9 * K, 4), O({ r: 20 * K, paint: (u, v) => (v > 13 * K && u < 1 * K && u > -5 * K && (Math.round(v / K) % 3 === 0) ? R[1] : 0) }));
+    part(p, W.head, f, (u, v) => sd.box(u + 5 * K, v - 8 * K, 3.5 * K, 6.5 * K, 2), O({ r: 14 * K }));
+    part(p, W.head, f, (u, v) => sd.box(u - 5.5 * K, v - 9 * K, 2.8 * K, 9 * K, 1.5), O({ r: 14 * K, paint: mossy(9) }));
+    for (const dd of [-2.6, 2.6]) {
+      const [ex, ey] = at(W.head, (11.5 + dd * 0.4) * K, -2.2 * K);
+      const ec = hot ? hex("#ff5030") : hex("#fff6c4");
+      p.put(Math.round(ex), Math.round(ey), ec); p.put(Math.round(ex) + 1, Math.round(ey), ec); p.put(Math.round(ex) - 1, Math.round(ey), hot ? MAGMA[3] : CRYS[3]);
+      glow(p, ex, ey, 6 * K, hot ? hex("#ff5030") : hex("#ffe27a"), 0.5);
+    }
     // embers rising off it when angry
-    if (hot) for (let i = 0; i < 10; i++) { const ph = (t * 0.7 + i / 10) % 1; const x = Math.round(this.x + S(i * 2.7 + t) * 40 * K), y = Math.round(rise(base - 30 * K - ph * 90 * K)); p.put(x, y, MAGMA[ph < 0.5 ? 5 : 3], 1 - ph); p.add(x, y, glowC, 0.5 * (1 - ph)); }
+    if (hot) for (let i = 0; i < 12; i++) { const ph = (t * 0.7 + i / 12) % 1; const x = Math.round(this.x + S(i * 2.7 + t) * 46 * K), y = Math.round(this.y - 20 * K - ph * 100 * K); p.put(x, y, MAGMA[ph < 0.5 ? 5 : 3], 1 - ph); p.add(x, y, glowC, 0.5 * (1 - ph)); }
     // orbiting debris
     for (const d of this.debris) {
       d.a += (hot ? 2.2 : 1) * 0.016;
-      const x = this.x + C(d.a) * d.r * K, y = base + d.y * K + S(d.a) * 12;
       if (S(d.a) <= 0) continue;
-      sculpt(p, x, rise(y), (u, v) => sd.rock(u, v, d.s * K, d.s * 0.8 * K, d.r, 0.25, 5), { ramp: R, r: d.s * K + 3, tint: flash });
+      const x = this.x + C(d.a) * d.r * K, y = this.y + d.y * K + S(d.a) * 12;
+      sculpt(p, x, y, (u, v) => sd.rock(u, v, d.s * K, d.s * 0.8 * K, d.r, 0.25, 5), { ramp: R, r: d.s * K + 3, tint: flash });
     }
     this.drawDebris(p, 0);
-    // shockwave rings
     if (this.rings) {
       this.rings = this.rings.filter((r) => this.world.time - r.t0 < r.R / 220);
       for (const r of this.rings) {
         const rr = (this.world.time - r.t0) * 220, k = 1 - rr / r.R;
-        for (let a = 0; a < 180; a++) { const an = (a / 180) * Math.PI * 2, x = Math.round(r.x + C(an) * rr), y = Math.round(r.y + S(an) * rr / DEPTH_K); p.put(x, y, coreR[4], k); p.put(x, y - 1, coreR[2], k * 0.8); p.add(x, y - 2, glowC, 0.35 * k); }
+        for (let a2 = 0; a2 < 180; a2++) { const an = (a2 / 180) * Math.PI * 2, x = Math.round(r.x + C(an) * rr), y = Math.round(r.y + S(an) * rr / DEPTH_K); p.put(x, y, core[4], k); p.put(x, y - 1, core[2], k * 0.8); p.add(x, y - 2, glowC, 0.35 * k); }
       }
     }
   }
   drawDebris(p, all) {
     for (const f of this.fly) sculpt(p, f.x, f.y, (u, v) => sd.rock(u, v, f.r, f.r * 0.8, f.r * 3, 0.25, 5), { ramp: this.phase === 2 ? ROCK_HOT : ROCK, r: f.r + 3, rot: f.t * 4, alpha: f.t > 2.4 ? 1 - (f.t - 2.4) / 0.6 : 1 });
-  }
-  drawGround(p) {
-    super.drawGround(p);
-    // the giant casts a big soft shadow and its stomps leave cracks glowing on the floor
   }
 }
 
