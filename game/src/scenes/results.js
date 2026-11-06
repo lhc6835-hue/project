@@ -4,7 +4,7 @@ import { W, H } from "../core/screen.js";
 import { World } from "../game/world.js";
 import { save } from "../core/save.js";
 import { el, icon } from "../ui/dom.js";
-import { sfx } from "../core/audio.js";
+import { sfx, music, jingle } from "../core/audio.js";
 
 export class ResultsScene {
   constructor(game, args) {
@@ -41,7 +41,7 @@ export class ResultsScene {
     box.querySelector(".ok").onclick = () => { sfx("ok"); import("../main.js").then(({ go }) => go("garden", unlock === "gacha" ? { unlocked: "gacha" } : {})); };
     document.getElementById("ui").append(box);
     this.nums = [...box.querySelectorAll("b[data-v]")];
-    sfx(a.died ? "die" : "level");
+    if (a.died) { music(null); jingle("gameover"); } else { music("results"); jingle("victory"); }
   }
 
   update(dt) {

@@ -7,7 +7,7 @@ import { drawSpirit } from "../game/spirit_art.js";
 import { drawRig } from "../rig/rig.js";
 import { idlePose } from "../game/poses.js";
 import { el } from "../ui/dom.js";
-import { sfx, setMuted, isMuted } from "../core/audio.js";
+import { sfx, setMuted, isMuted, setMusicOff } from "../core/audio.js";
 import { save, wipe, load, useSlot } from "../core/save.js";
 import { auth } from "../core/auth.js";
 import { openSave } from "../core/session.js";
@@ -162,6 +162,7 @@ export class TitleScene {
       <div class="col" style="align-items:center">
         <label class="row"><input type="checkbox" class="fs" ${S.settings.fullscreen !== false ? "checked" : ""}> 자동 전체화면</label>
         <label class="row"><input type="checkbox" class="mute" ${S.settings.mute ? "checked" : ""}> 소리 끄기</label>
+        <label class="row"><input type="checkbox" class="mus" ${S.settings.musicOff ? "checked" : ""}> 배경음악 끄기</label>
         <label class="row"><input type="checkbox" class="auto" ${S.settings.autoAttack ? "checked" : ""}> 평타 자동 사용</label>
         <label class="row">화면 흔들림 <input type="range" class="shake" min="0" max="1" step="0.25" value="${S.settings.shake}"></label>
         ${auth.loggedIn ? '<button class="btn pwc">비밀번호 변경</button>' : ""}
@@ -170,6 +171,7 @@ export class TitleScene {
       </div>`);
     ov.querySelector(".fs").onchange = (e) => { S.settings.fullscreen = e.target.checked; setAutoFullscreen(e.target.checked); if (e.target.checked) enterFullscreen(); save(S); };
     ov.querySelector(".mute").onchange = (e) => { S.settings.mute = e.target.checked; setMuted(S.settings.mute); save(S); };
+    ov.querySelector(".mus").onchange = (e) => { S.settings.musicOff = e.target.checked; setMusicOff(S.settings.musicOff); save(S); };
     ov.querySelector(".auto").onchange = (e) => { S.settings.autoAttack = e.target.checked; save(S); };
     ov.querySelector(".shake").oninput = (e) => { S.settings.shake = +e.target.value; window.SHAKE = S.settings.shake; save(S); };
     ov.querySelector(".wipe").onclick = async () => { if (confirm(auth.loggedIn ? "이 계정의 모든 진행 상황을 지울까요? 서버 저장도 지워져요." : "정말 모든 진행 상황을 지울까요?")) { const f = wipe(); if (auth.loggedIn) { save(f); await auth.flush(); } location.reload(); } };

@@ -11,7 +11,7 @@ import { ELEMENTS, BASE_ELEMENTS, STAGES } from "../data/elements.js";
 import { SPIRIT, heroStats } from "../data/spirits.js";
 import { drawCards, CARD_GRADE } from "../data/cards.js";
 import { spiritByUid, save } from "../core/save.js";
-import { sfx } from "../core/audio.js";
+import { sfx, music, jingle } from "../core/audio.js";
 import { el, toast, icon } from "../ui/dom.js";
 
 const FLOORS = 10;
@@ -82,6 +82,8 @@ export class RunScene {
     hero.input = { x: 0, y: 0 };
     hero.onRelease = (a) => this.onRelease(a);
     this.wave = 0;
+    const isBoss = this.floor === 5 || this.floor === 10;
+    music(isBoss ? null : ["level1", "level2", "level3", "level4", "level5"][(this.floor - 1 + this.depth) % 5]);
     this.boss = null;
     this.isBossFloor = this.floor === 5 || this.floor === 10;
     this.waves = this.isBossFloor ? 1 : this.floor <= 2 ? 2 : 3;
@@ -176,6 +178,7 @@ export class RunScene {
     this.bossKilled = this.floor === 5 ? "golem" : "void";
     this.bossBar(false);
     this.banner(`${b.name} 격파!`, "#ffd84a");
+    music(null); jingle("victory");
     this.world.fx("ui/confetti", { x: 240, y: 60, top: true });
   }
 
@@ -327,7 +330,8 @@ export class RunScene {
   cinematic(b) {
     this.inCinema = true;
     this.letterbox(true);
-    sfx("door");
+    sfx("door"); jingle("bossIntro");
+    setTimeout(() => music("boss"), 2600);
     const E = b.el === "dark" ? "#c684ff" : "#e8b05a";
     const card = el("div", { class: "titlecard pass" }, `<span class="tc-sub">${b.title}</span><b class="tc-name" style="--c:${E}">${b.name}</b><i class="tc-line" style="--c:${E}"></i>`);
     setTimeout(() => this.hud?.querySelector(".banner")?.after(card), 900);

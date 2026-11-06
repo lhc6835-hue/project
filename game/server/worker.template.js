@@ -105,6 +105,12 @@ export default {
       try { return await api(req, env, path); } catch (e) { return fail("서버 오류가 났어요.", 500); }
     }
     if (path === "/") path = "/index.html";
+    // sound files are too big to pack into this script: they live in KV (uploaded by tools/upload-audio.sh)
+    if (path.startsWith("/assets/audio/") && path.endsWith(".mp3")) {
+      const b = await env.DB.get("file:" + path, "arrayBuffer");
+      if (!b) return new Response("not found", { status: 404 });
+      return new Response(b, { headers: { "content-type": "audio/mpeg", "cache-control": "public, max-age=604800" } });
+    }
     const f = FILES[path];
     if (!f) return new Response("not found", { status: 404 });
     let b = cache.get(path);

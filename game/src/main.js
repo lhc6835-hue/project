@@ -2,7 +2,7 @@
 import { loadFx } from "./px.js";
 import { Screen } from "./core/screen.js";
 import { Input } from "./core/input.js";
-import { unlockAudio } from "./core/audio.js";
+import { unlockAudio, music, setMuted, setMusicOff } from "./core/audio.js";
 import { skillFxIds } from "./data/skills.js";
 import { DECOR_IDS } from "./game/room.js";
 import { auth } from "./core/auth.js";
@@ -27,6 +27,10 @@ export function go(name, args) {
   document.getElementById("ui").innerHTML = "";
   game.input.showTouch(false);
   game.scene = new S(game, args);
+  const st = game.save?.settings;
+  if (st) { setMuted(!!st.mute); setMusicOff(!!st.musicOff); }
+  const track = { title: "title", select: "garden", garden: "garden", gacha: "garden", absorb: "garden" }[name];
+  if (track) music(track);
   game.scene.enter?.();
 }
 
