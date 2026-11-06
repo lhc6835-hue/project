@@ -3,12 +3,13 @@ import { STAGE_FX } from "../data/elements.js";
 import { Projectile, DEPTH_K } from "./world.js";
 import { archetype } from "./poses.js";
 import { sfx } from "../core/audio.js";
+import { WEAPON_BY_MOVE } from "./weapons.js";
 
 const SWING_SFX = { fire: "swing", water: "water", wind: "dash", earth: "swing" };
 
 export class Action {
   constructor(owner, def, world) {
-    this.o = owner; this.def = def; this.w = world;
+    this.o = owner; this.def = def; this.w = world; this.swung = !!(owner?.isHero !== false && WEAPON_BY_MOVE[def.name]?.swing);
     this.t = -(def.windup ?? 0);
     this.end = Math.max(def.recover ?? 0.2, 0);
     this.done = false;
@@ -50,6 +51,7 @@ export class Action {
 
     (d.fx ?? []).forEach((e, i) => {
       if (!due("fx" + i, e.t)) return;
+      if (this.swung && e.id.startsWith("melee/")) return; // the blade's own swept arc replaces the stock slash
       const base = { ramp: this.rampOf(e.ramp ?? "main"), light: this.light(e.light), opts: e.opts, dur: e.dur };
       if (e.follow) w.fx(e.id, { ...base, follow: o, dx: e.dx ?? 0, dy: e.dy ?? 0 });
       else if (e.at === "aim") w.fx(e.id, { ...base, x: this.aim[0], y: this.aim[1], flip: o.flip });

@@ -10,7 +10,7 @@ import { moveset } from "../data/skills.js";
 import { SPIRIT } from "../data/spirits.js";
 import { sfx } from "../core/audio.js";
 import { TRAITS } from "../data/traits.js";
-import { WEAPON_BY_MOVE, drawWeapon, trackWhip } from "./weapons.js";
+import { WEAPON_BY_MOVE, drawWeapon, trackWhip, swingPose, drawSwung, trackSwing, drawSwept } from "./weapons.js";
 
 const BASIC_GAP = 0.06;
 
@@ -181,9 +181,15 @@ export class Hero extends Actor {
 
   /** Where this frame's motion comes from, and the spring that smooths it into the drawn pose. */
   target() {
-    this.spinFlip = false;
+    this.spinFlip = false; this.blades = null;
     if (this.dead) return [DEAD, "hurt"];
     if (this.dashT > 0) return [{ turn: 0.95, lean: 0.62, aN: -1.1, aF: -1.3, lN: 0.75, lF: -0.85, crouch: 2, sx: 1.16, sy: 0.9, plant: false, z: this.stage >= 3 ? 6 : 1 }, "act"];
+    if (this.act && this.act.busy && WEAPON_BY_MOVE[this.act.def.name]?.swing) {
+      const { pose, blades } = swingPose(WEAPON_BY_MOVE[this.act.def.name], this.act.def, this.act.t);
+      this.blades = blades;
+      if (this.stage >= 3) { pose.z = 3; pose.plant = false; }
+      return [pose, "act"];
+    }
     if (this.act && this.act.busy) {
       const raw = sampleKeys(this.act.keys, this.act.t, lerpPose);
       let p = { ...raw };
@@ -235,6 +241,7 @@ export class Hero extends Actor {
     if (wdef) { this.weapon = wdef; const end = this.act.t > (this.act.def.recover ?? 0.3) - 0.08; this.weaponK = Math.min(1, this.weaponK + dt * (end ? -8 : 14)); }
     else this.weaponK = Math.max(0, (this.weaponK ?? 0) - dt * 6);
     if (this.weapon?.kind === "whip" && this.weaponK > 0) trackWhip(this, out);
+    if (this.weapon?.swing || this.swept?.length) trackSwing(this, out, this.weapon ?? {}, dt);
     this.cur = out; this.lastPose = out;
   }
 
@@ -276,9 +283,12 @@ export class Hero extends Actor {
     p.reset();
     this.dust.draw(p);
     if (!this.dead) this.scarf.draw(p, this.accent, this.stage >= 3 ? this.glowC : null);
+    const swung = !this.dead && this.weapon?.swing;
+    if (swung) { p.reset(); drawSwept(p, this, "back"); drawSwung(p, this, pose, this.weapon, this.weaponK ?? 0, this.t, "back"); p.reset(); }
     drawRig(p, { x: this.x, y: this.y - this.z, pose, flip, skin: this.skin, decor: this.decor, tint: this.hitFlash > 0 ? hex("#ffffff") : null, alpha: flicker ? 0.45 : 1 });
     p.reset();
-    if (!this.dead) drawWeapon(p, this, pose, this.weapon, this.weaponK ?? 0, this.t);
+    if (swung) { drawSwept(p, this, "front"); drawSwung(p, this, pose, this.weapon, this.weaponK ?? 0, this.t, "front"); }
+    else if (!this.dead) drawWeapon(p, this, pose, this.weapon, this.weaponK ?? 0, this.t);
     p.reset();
     for (const t of this.traits) t.draw?.(this, p);
     this.trail.draw(p, this.ramps.main.map((c) => (typeof c === "number" ? c : hex(c))), this.glowC);
