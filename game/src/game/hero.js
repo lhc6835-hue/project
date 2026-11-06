@@ -10,6 +10,7 @@ import { moveset } from "../data/skills.js";
 import { SPIRIT } from "../data/spirits.js";
 import { sfx } from "../core/audio.js";
 import { TRAITS } from "../data/traits.js";
+import { WEAPON_BY_MOVE, drawWeapon, trackWhip } from "./weapons.js";
 
 const BASIC_GAP = 0.06;
 
@@ -28,7 +29,7 @@ export class Hero extends Actor {
     this.speed = this.stats.speed;
     this.contactCd = 0;
     this.anim = new Animator(); this.scarf = new Scarf([0, 6, 8, 10][this.stage], 3.4); this.trail = new Trail(); this.dust = new Dust();
-    this.cur = {}; this.prevX = this.x; this.prevY = this.y; this.prevFlip = this.flip; this.vel = [0, 0]; this.stepU = 0; this.wasAir = false; this.lastHand = null;
+    this.cur = {}; this.weaponK = 0; this.prevX = this.x; this.prevY = this.y; this.prevFlip = this.flip; this.vel = [0, 0]; this.stepU = 0; this.wasAir = false; this.lastHand = null;
     this.traits = (def.traits ?? []).map((k) => TRAITS[k]).filter(Boolean);
     this.buildLook();
   }
@@ -229,6 +230,11 @@ export class Hero extends Actor {
       this.lastHand = [hx, hy];
     } else this.lastHand = null;
     this.trail.update(dt); this.dust.update(dt);
+    // the conjured weapon: solid while the move plays, dissolving as it ends
+    const wdef = this.act && this.act.busy ? WEAPON_BY_MOVE[this.act.def.name] : null;
+    if (wdef) { this.weapon = wdef; const end = this.act.t > (this.act.def.recover ?? 0.3) - 0.08; this.weaponK = Math.min(1, this.weaponK + dt * (end ? -8 : 14)); }
+    else this.weaponK = Math.max(0, (this.weaponK ?? 0) - dt * 6);
+    if (this.weapon?.kind === "whip" && this.weaponK > 0) trackWhip(this, out);
     this.cur = out; this.lastPose = out;
   }
 
@@ -271,6 +277,8 @@ export class Hero extends Actor {
     this.dust.draw(p);
     if (!this.dead) this.scarf.draw(p, this.accent, this.stage >= 3 ? this.glowC : null);
     drawRig(p, { x: this.x, y: this.y - this.z, pose, flip, skin: this.skin, decor: this.decor, tint: this.hitFlash > 0 ? hex("#ffffff") : null, alpha: flicker ? 0.45 : 1 });
+    p.reset();
+    if (!this.dead) drawWeapon(p, this, pose, this.weapon, this.weaponK ?? 0, this.t);
     p.reset();
     for (const t of this.traits) t.draw?.(this, p);
     this.trail.draw(p, this.ramps.main.map((c) => (typeof c === "number" ? c : hex(c))), this.glowC);

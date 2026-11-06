@@ -10,7 +10,7 @@ import { skillFxIds } from "../src/data/skills.js";
 const q = new URLSearchParams(location.search);
 const el = q.get("el") ?? "fire", stage = +(q.get("stage") ?? 2), every = +(q.get("every") ?? 3), CW = +(q.get("cw") ?? 64), CH = +(q.get("ch") ?? 60), S = +(q.get("s") ?? 3), fx = q.get("fx") !== "0";
 await loadFx([...skillFxIds(), "status/burning", "ui/damage-number", "ui/crit-number", "impacts/hit-spark"]);
-const id = { fire: "sala", water: "undi", wind: "sylphi", earth: "nomi", code: "sudo" }[el];
+const id = { fire: "sala", water: "undi", wind: "sylphi", earth: "nomi", code: "sudo", light: "solaris", dark: "nox" }[el];
 const world = new World({ x0: 0, x1: 2000, y0: 0, y1: 400 });
 const sp = { id, lv: 20, stage };
 const hero = new Hero({ spirit: sp, stats: heroStats(sp), x: 300, y: 200 });
