@@ -91,6 +91,22 @@ export class Hero extends Actor {
 
   get busy() { return this.act && this.act.busy; }
 
+  /** Would the basic attack actually reach this enemy (turning to face it first)? Uses the move's own hit areas. */
+  inBasicReach(e) {
+    const m = this.moves.basic; if (!m || e.dead || e.untargetable) return false;
+    const dx = Math.abs(e.x - this.x), dy = Math.abs(e.y - this.y), lift = Math.abs((e.z ?? 0) + (e.hover ?? 0) - this.z);
+    if (lift > 40) return false;
+    const areas = [...(m.hits ?? []), ...(m.ticks ?? [])];
+    for (const h of areas) {
+      if (h.at === "aim" || h.at === "nearest") continue;
+      if (h.box) { const [x0, x1, d] = h.box; if (dx <= x1 + e.r * 0.5 && dx >= x0 - e.r && dy <= d + e.r * 0.3) return true; }
+      if (h.circ) { const [r, off] = h.circ; if (Math.hypot(dx - Math.max(0, off), dy * 1.7) <= r + e.r * 0.5) return true; }
+    }
+    // short-range shots: in range and roughly on our row
+    for (const pr of m.proj ?? []) if (dx <= pr.range * 0.85 && dy <= 22) return true;
+    return false;
+  }
+
   tryAct(slot) {
     if (this.dead || !this.canAct || this.dashT > 0) return false;
     const m = this.moves[slot];

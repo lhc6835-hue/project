@@ -203,7 +203,7 @@ export class RunScene {
       if (inp.take("dash")) { h.tryDash([h.input.x, h.input.y]); if (this.mods.dashBuff) this.dashBuff(); }
       for (const s of ["s1", "s2", "ult"]) if (inp.take(s)) h.tryAct(s);
       const wantBasic = inp.take("attack") || inp.held.has("attack");
-      const auto = this.S.settings.autoAttack && !wantBasic && w.nearestEnemy(h.x, h.y, 64, null) && !h.busy;
+      const auto = this.S.settings.autoAttack && !wantBasic && !h.busy && w.enemies.some((e) => h.inBasicReach(e));
       if (wantBasic || auto) h.tryAct("basic");
     } else h.input = { x: 0, y: 0 };
     // ultimate dims the world for a moment
