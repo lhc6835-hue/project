@@ -10,6 +10,7 @@ import { TRAITS } from "../data/traits.js";
 import { ELEMENTS, STAGES } from "../data/elements.js";
 import { moveset } from "../data/skills.js";
 import { save, spiritByUid } from "../core/save.js";
+import { auth } from "../core/auth.js";
 import { el, toast, icon } from "../ui/dom.js";
 import { iconImg } from "../ui/icons.js";
 import { sfx } from "../core/audio.js";
@@ -96,7 +97,8 @@ export class GardenScene {
 
   syncWalkers() {
     const S = this.S;
-    this.walkers = S.spirits.map((sp, i) => {
+    const shown = [...S.spirits].sort((a, b) => (b.uid === S.active) - (a.uid === S.active) || (b.uid === S.sub) - (a.uid === S.sub)).slice(0, 12);
+    this.walkers = shown.map((sp, i) => {
       const old = this.walkers.find((w) => w.uid === sp.uid);
       return old ?? { uid: sp.uid, x: 140 + rand(i, 1) * 200, y: 180 + rand(i, 2) * 70, tx: 0, ty: 0, wait: rand(i, 3) * 2, flip: false, t: rand(i, 4) * 5 };
     });
@@ -216,7 +218,10 @@ export class GardenScene {
         ${sp.uid !== S.active ? `<button class="btn primary main">주 정령으로</button>` : ""}
         ${sp.uid !== S.active && sp.uid !== S.sub && S.spirits.some((x) => x.stage >= 2) ? `<button class="btn subb">보조로</button>` : ""}
         ${sp.stage === 3 && S.res.shards >= shardsNeed && sp.dupes < 3 ? `<button class="btn brk">돌파 ${icon("shard")}${shardsNeed}</button>` : ""}
-      </div>`;
+      </div>
+      ${auth.account?.isDev ? `<div class="row acts dev-acts"><b class="devtag">DEV</b>
+        ${[1, 2, 3].map((n) => `<button class="btn sm dstage${sp.stage === n ? " primary" : ""}" data-n="${n}">${STAGES[n - 1].name}</button>`).join("")}
+        <button class="btn sm gold dtest">이 정령으로 출격</button></div>` : ""}`;
     const q = (s) => box.querySelector(s);
     const lvUp = (n) => {
       let done = 0;
@@ -234,6 +239,12 @@ export class GardenScene {
     });
     q(".main") && (q(".main").onclick = () => { if (S.sub === sp.uid) S.sub = null; S.active = sp.uid; save(S); sfx("ok"); redraw(); });
     q(".subb") && (q(".subb").onclick = () => { S.sub = sp.uid; save(S); sfx("ok"); redraw(); });
+    box.querySelectorAll(".dstage").forEach((b) => (b.onclick = () => {
+      const n = +b.dataset.n; if (n === sp.stage) return;
+      sp.stage = n; sp.lv = n === 3 ? 45 : n === 2 ? EVOLVE_LV[3] : EVOLVE_LV[2];
+      save(S); sfx("level"); redraw(); this.refresh();
+    }));
+    q(".dtest") && (q(".dtest").onclick = () => { if (S.sub === sp.uid) S.sub = null; S.active = sp.uid; save(S); sfx("ok"); this.closePanels(); this.refresh(); this.sortiePanel(); });
     q(".brk") && (q(".brk").onclick = () => { S.res.shards -= shardsNeed; sp.dupes++; save(S); sfx("level"); redraw(); this.refresh(); });
   }
 

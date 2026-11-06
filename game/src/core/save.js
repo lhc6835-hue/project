@@ -50,6 +50,9 @@ export function applyAccount(s, account) {
       s.spirits.push(sp); granted = sp;
       if (!s.started) { s.started = true; s.active = sp.uid; }
     }
+    // every other spirit too, fully grown, so each one can be tried out (stages can be switched in the garden)
+    for (const d of Object.values(SPIRIT)) if (!d.dev && !s.spirits.some((x) => x.id === d.id))
+      s.spirits.push({ uid: s.uidN++, id: d.id, lv: 45, stage: 3, dupes: 0 });
   } else {
     const gone = s.spirits.filter((x) => devIds.includes(x.id)).map((x) => x.uid);
     if (gone.length) {

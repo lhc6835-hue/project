@@ -189,6 +189,7 @@ body.touch .skills { display: none; }
 .mv b { color: var(--hi); display: inline-block; min-width: calc(var(--u) * 22); }
 .acts { flex-wrap: wrap; gap: calc(var(--u) * 3); margin-top: auto; }
 .acts .btn { font-size: calc(var(--u) * 7); padding: calc(var(--u) * 2) calc(var(--u) * 5); }
+.dev-acts { margin-top: 0; align-items: center; border-top: var(--u) dashed #3cd650; padding-top: calc(var(--u) * 3); }
 .sp-wrap .x { position: absolute; right: calc(var(--u) * 4); top: calc(var(--u) * 4); font-size: calc(var(--u) * 6); padding: var(--u) calc(var(--u) * 4); }
 .fac-wrap { width: calc(var(--u) * 300); display: flex; flex-direction: column; gap: calc(var(--u) * 5); }
 .fac { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--u) calc(var(--u) * 6); background: #0e0c1c; padding: calc(var(--u) * 4); border: var(--u) solid #2e2752; }
