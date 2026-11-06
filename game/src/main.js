@@ -16,7 +16,7 @@ const COMMON_FX = [
   "ui/damage-number", "ui/crit-number", "ui/quest-complete", "ui/level-up", "ui/confetti", "ui/achievement", "impacts/impact-frame", "impacts/hit-spark", "impacts/crit-hit",
   "weather/aurora", "weather/fireflies", "weather/shooting-stars", "holy/sunburst", "holy/holy-pillar", "holy/halo", "arcane/portal", "arcane/magic-circle-cast", "arcane/rune-circle",
   "water/fountain", "pickups/collect-burst", "pickups/xp-orb", "pickups/gem-spin", "transitions/iris", "fire/spirit-flame", "lightning/zap-hit",
-  "shadow/void-orb", "shadow/shadow-flames", "shadow/dark-explosion", "shadow/grasping-hands", "shadow/hex-sigil", "shadow/black-hole", "explosions/big-explosion", "nature/boulder", "nature/earth-spike", "explosions/implosion", "arcane/star-fall",
+  "shadow/void-orb", "critters/frog", "critters/snake", "critters/jellyfish", "critters/butterfly", "critters/bird", "holy/heal", "impacts/shield-block", "ice/ice-spikes", "water/whirlpool", "impacts/ground-slam", "shadow/shadow-flames", "shadow/dark-explosion", "shadow/grasping-hands", "shadow/hex-sigil", "shadow/black-hole", "explosions/big-explosion", "nature/boulder", "nature/earth-spike", "explosions/implosion", "arcane/star-fall",
 ];
 
 export const game = { screen: null, input: null, scene: null, save: null, scenes: {} };

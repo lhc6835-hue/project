@@ -3,9 +3,10 @@ import { hex, clamp } from "../px.js";
 import { W, H } from "../core/screen.js";
 import { World } from "../game/world.js";
 import { Hero } from "../game/hero.js";
-import { Enemy, THEME_POOL } from "../game/enemies.js";
+import { Enemy } from "../game/enemies.js";
+import { Hazard } from "../game/hazards.js";
 import { StoneGiant, VoidCaller } from "../game/bosses.js";
-import { ARENA, paintRoom, roomDecor } from "../game/room.js";
+import { ARENA, paintRoom, roomDecor, MAPS, NORMAL_MAPS } from "../game/room.js";
 import { ELEMENTS, BASE_ELEMENTS, STAGES } from "../data/elements.js";
 import { SPIRIT, heroStats } from "../data/spirits.js";
 import { drawCards, CARD_GRADE } from "../data/cards.js";
@@ -30,6 +31,8 @@ export class RunScene {
     this.depth = +(args.depth ?? this.S.depth ?? 1);
     this.floor = +(args.floor ?? 1);
     this.themes = this.makeThemes();
+    if (args.map) this.themes = this.themes.map(() => args.map);
+    this.testPool = args.pool ? args.pool.split("-") : null;
     this.loot = { essence: 0, gems: 0, evo: 0, awake: 0 };
     this.mods = { killHeal: 0, dashBuff: false, echo: 0, revive: false };
     this.taken = new Set();
@@ -41,12 +44,16 @@ export class RunScene {
   }
 
   makeThemes() {
-    // floors cycle through elements, starting with the one our spirit beats (a gentle first floor)
-    const order = [];
-    const own = SPIRIT[this.spirit.id].el;
-    let e = BASE_ELEMENTS.includes(own) ? ELEMENTS[own].beats : "earth";
-    for (let i = 0; i < 4; i++) { order.push(e); e = ELEMENTS[e].beats; }
-    return Array.from({ length: FLOORS }, (_, i) => (i === 4 ? "earth" : i === 9 ? "fire" : order[i % 4]));
+    // eight different maps for the eight normal floors, opening with one whose element we beat;
+    // floor 5 is the colossus's mine, floor 10 the void sanctum
+    const own = SPIRIT[this.spirit.id].el, easy = ELEMENTS[own]?.beats;
+    const pool = [...NORMAL_MAPS].sort(() => Math.random() - 0.5);
+    const first = pool.findIndex((m) => MAPS[m].el === easy);
+    if (first > 0) pool.unshift(...pool.splice(first, 1));
+    const out = [];
+    let k = 0;
+    for (let i = 0; i < FLOORS; i++) out.push(i === 4 ? "mine" : i === 9 ? "sanctum" : pool[k++ % pool.length]);
+    return out;
   }
 
   enter() {
@@ -80,7 +87,10 @@ export class RunScene {
     this.waves = this.isBossFloor ? 1 : this.floor <= 2 ? 2 : 3;
     this.waveDelay = 1.2;
     this.state = "fight";
-    this.banner(this.isBossFloor ? `${this.floor}층 — 보스` : `${this.floor}층 · ${ELEMENTS[theme].floor.name}`, ELEMENTS[theme].css);
+    const M = MAPS[theme];
+    this.mapEl = M.el;
+    if (M.hazard && !this.isBossFloor) this.world.hazard = new Hazard(M.hazard, this.world, this.scale().dmg);
+    this.banner(this.isBossFloor ? `${this.floor}층 — 보스` : `${this.floor}층 · ${M.name}`, ELEMENTS[M.el]?.css ?? "#f1ecff");
     this.updateHud(true);
   }
 
@@ -102,8 +112,8 @@ export class RunScene {
       this.cinematic(b);
       return;
     }
-    const pool = THEME_POOL[this.theme];
-    const tier = Math.min(pool.length, 2 + Math.floor(this.floor / 2));
+    const pool = this.testPool ?? MAPS[this.theme].pool;
+    const tier = Math.min(pool.length, 3 + Math.floor(this.floor / 2));
     const n = Math.round(3 + this.floor * 0.55 + this.wave * 0.8 + (this.depth - 1));
     for (let i = 0; i < n; i++) {
       const kind = pool[Math.floor(Math.random() * tier)];
@@ -111,7 +121,7 @@ export class RunScene {
       const x = side > 0 ? A.x1 - 20 - Math.random() * 120 : A.x0 + 20 + Math.random() * 60;
       const y = A.y0 + 6 + Math.random() * (A.y1 - A.y0 - 12);
       const elite = this.floor >= 3 && Math.random() < 0.06 + this.floor * 0.015;
-      this.world.after(i * 0.18, () => this.world.add(new Enemy(kind, { x, y, el: this.theme, scale: sc.hp, dmgScale: sc.dmg, elite })));
+      this.world.after(i * 0.18, () => this.world.add(new Enemy(kind, { x, y, el: this.mapEl, scale: sc.hp, dmgScale: sc.dmg, elite })));
     }
   }
 
@@ -154,6 +164,7 @@ export class RunScene {
     for (let i = 0; i < count; i++) this.orbs.push({ x: e.x, y: e.y, z: 10, vx: (Math.random() - 0.5) * 120, vy: (Math.random() - 0.5) * 60, vz: 80 + Math.random() * 80, t: 0, val: ess / count, kind: "ess" });
     if (e.elite && Math.random() < 0.3) { this.loot.evo++; toast("진화석 획득!"); }
     if (Math.random() < 0.04) this.orbs.push({ x: e.x, y: e.y, z: 10, vx: 0, vy: 0, vz: 120, t: 0, val: 10, kind: "gem" });
+    if (e.D?.gems) for (let i = 0; i < 3; i++) this.orbs.push({ x: e.x, y: e.y, z: 10, vx: (Math.random() - 0.5) * 120, vy: (Math.random() - 0.5) * 60, vz: 140, t: 0, val: e.D.gems / 3, kind: "gem" });
   }
 
   onBossDown(b) {

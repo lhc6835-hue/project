@@ -74,6 +74,7 @@ export class World {
     this.runners = this.runners.filter((r) => this.time < r.until);
     for (const b of this.bolts) b.t -= dt;
     this.bolts = this.bolts.filter((b) => b.t > 0);
+    this.hazard?.update(dt);
     for (const e of this.ents) if (!e.removed) e.update(dt);
     for (const p of this.projs) p.update(dt, this);
     this.projs = this.projs.filter((p) => !p.dead);
@@ -100,6 +101,7 @@ export class World {
     items.sort((a, b) => a.y - b.y);
     // shadows and ground marks first
     p.reset();
+    if (this.hazard) { this.hazard.drawGround(p); p.reset(); }
     for (const e of this.ents) if (!e.removed) e.drawGround?.(p);
     for (const f of this.fxs) if (f.bottom) this.drawFx(p, f);
     for (const it of items) {
@@ -184,6 +186,7 @@ export class World {
     else dmg *= aff;
     if (tgt.stats?.armor) dmg *= 1 - tgt.stats.armor;
     if (tgt.frozen > 0) dmg *= 1.15;
+    if (tgt.modDamage) dmg = tgt.modDamage(dmg, src, h);
     dmg = Math.max(1, Math.round(dmg * (0.92 + this.rng.next() * 0.16)));
     tgt.hp -= dmg;
     tgt.hitFlash = 0.09;

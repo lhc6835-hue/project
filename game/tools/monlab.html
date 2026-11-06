@@ -1,0 +1,24 @@
+<!doctype html><html><body style="margin:0;background:#000">
+<canvas id="c" style="image-rendering:pixelated"></canvas>
+<script type="module">
+import { createFrame, clearFrame, composite, painterFor, hex, loadFx } from "../src/px.js";
+import { World } from "../src/game/world.js";
+import { Enemy, ENEMY_DEFS } from "../src/game/enemies.js";
+const q = new URLSearchParams(location.search), kinds = (q.get("k") ?? Object.keys(ENEMY_DEFS).join(",")).split(","), el = q.get("el") ?? "earth", S = +(q.get("s") ?? 3);
+await loadFx(["critters/slime", "critters/bat", "critters/flying-skull", "critters/ghost", "critters/eyeball", "critters/wisp", "critters/frog", "critters/snake", "critters/jellyfish", "critters/butterfly", "critters/bird", "spawn/poof", "status/rage"]);
+const CW = 80, CH = 70, cols = 8, rows = Math.ceil(kinds.length / cols);
+const cv = document.getElementById("c"); cv.width = CW * cols; cv.height = CH * rows; cv.style.width = cv.width * S + "px"; cv.style.height = cv.height * S + "px";
+const ctx = cv.getContext("2d");
+kinds.forEach((k, i) => {
+  const w = new World({ x0: -500, x1: 500, y0: 0, y1: 300 });
+  w.hero = { x: 200, y: 50, z: 0, r: 7, dead: false, iframes: 0, team: 0, height: 34, flip: false, applyStatus() {}, heal() {} };
+  const e = new Enemy(k, { x: 0, y: 50, el }); w.add(e); e.flip = false;
+  e.speed = 0; e.cool = 99; for (let n = 0; n < 160; n++) { w.update(1 / 60); e.x = 0; e.y = 50; e.flip = false; }
+  if (q.get("state")) { e.state = q.get("state"); e.stT = 0.3; e.mk = null; }
+  const f = createFrame(CW, CH, -CW / 2, 50 - CH + 10); clearFrame(f);
+  for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) f.color[y * CW + x] = y > CH - 12 ? hex("#2a2638") : ((i + Math.floor(i / cols)) % 2 ? hex("#1c1926") : hex("#221e2e"));
+  w.draw(painterFor(f));
+  const img = new ImageData(CW, CH); composite(f, img.data, hex("#1c1926")); ctx.putImageData(img, (i % cols) * CW, Math.floor(i / cols) * CH);
+  ctx.fillStyle = "#a59fc4"; ctx.font = "7px monospace"; ctx.fillText(k, (i % cols) * CW + 2, Math.floor(i / cols) * CH + 8);
+});
+</script></body></html>
