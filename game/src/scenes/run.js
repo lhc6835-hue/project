@@ -1,6 +1,7 @@
 // A dungeon run: 10 floors of waves, a card after each floor, bosses on 5 and 10.
 import { JUICE, holdFrames, KILL_STOP, ELITE_KILL_STOP, ELITE_KILL_SHAKE, HURT_EDGE_TIME, HURT_EDGE_K, LOW_HP, LOW_HP_EDGE_K, LOW_HP_PULSE_HZ, STREAK_WINDOW, STREAK_STEP, STREAK_MAX, LAST_KILL_SLOW, LAST_KILL_SHAKE, LAST_KILL_FLASH } from "../game/juice.js";
 import { hex, clamp } from "../px.js";
+import { cardIcon } from "../ui/cardicons.js";
 import { W, H } from "../core/screen.js";
 import { World } from "../game/world.js";
 import { Hero } from "../game/hero.js";
@@ -315,7 +316,7 @@ export class RunScene {
     // the lost chunk lingers in white, then drains after it (a heal jumps straight up)
     const chip = q(".hpbar .chip"), was = parseFloat(chip.style.width || "100");
     if (parseFloat(hpw) > was + 0.05) { chip.style.transition = "none"; chip.style.width = hpw; chip.dataset.to = hpw; } else if (chip.dataset.to !== hpw) { chip.dataset.to = hpw; chip.style.transition = ""; chip.style.width = hpw; }
-    q(".hpbar i").style.background = h.hp / h.maxHp < 0.3 ? "#e8405a" : "#3ec466";
+    q(".hpbar").classList.toggle("low", h.hp / h.maxHp < 0.3);
     q(".hpbar span").textContent = `${Math.ceil(h.hp)} / ${Math.round(h.maxHp)}`;
     q(".fl").textContent = `${this.floor}F`;
     q(".wv").textContent = this.isBossFloor ? " 보스" : ` 웨이브 ${Math.max(1, this.wave)}/${this.waves}`;
@@ -405,7 +406,7 @@ export class RunScene {
     const box = wrap.querySelector(".cards");
     for (const c of cards) {
       const G = CARD_GRADE[c.grade];
-      const b = el("button", { class: "card", style: `--g:${G.css}` }, `<div class="cg">${G.name}</div><div class="cn">${c.name}</div><div class="ct">${c.text}</div>`);
+      const b = el("button", { class: "card", style: `--g:${G.css}` }, `<div class="cmed"><img src="${cardIcon(c.id, G.css)}" alt=""></div><div class="cg">${G.name}</div><div class="cn">${c.name}</div><div class="ct">${c.text}</div>`);
       b.onclick = () => {
         sfx("ok");
         c.apply(h, this); if (!c.once) this.taken.add(c.id);

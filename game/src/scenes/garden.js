@@ -212,7 +212,7 @@ export class GardenScene {
     const shardsNeed = 10 * (sp.dupes + 1);
     box.innerHTML = `
       <div class="row" style="align-items:flex-start">
-        ${iconImg(sp.id, sp.stage, 56, "sp-big")}
+        ${iconImg(sp.id, sp.stage, 84, "sp-big sp-portrait")}
         <div style="flex:1">
           <div><b style="color:${E.css};font-size:calc(var(--u)*10)">${nameOf(sp)}</b> <span class="stars" style="color:${G.css}">${G.stars}</span></div>
           <div class="small dim">${E.name} 속성 · ${STAGES[sp.stage - 1].name} · Lv.${sp.lv}/${cap}${sp.dupes ? ` · 돌파 ${sp.dupes}` : ""}</div>
@@ -298,7 +298,7 @@ export class GardenScene {
           sfx("ui");
           grid.querySelectorAll(".dex-cell").forEach((n) => n.classList.remove("on")); b.classList.add("on");
           info.classList.remove("dim");
-          info.innerHTML = `<div class="row" style="align-items:flex-start">${iconImg(d.id, 3, 56, "sp-big" + (has ? "" : " un"))}<div>
+          info.innerHTML = `<div class="row" style="align-items:flex-start">${iconImg(d.id, 3, 84, "sp-big sp-portrait" + (has ? "" : " un"))}<div>
             <div><b style="color:${ELEMENTS[d.el].css};font-size:calc(var(--u)*9)">${has ? d.name : "???"}</b> <span style="color:${G.css}">${G.stars} ${G.name}</span></div>
             <div class="small dim">${ELEMENTS[d.el].name} 속성${has ? "" : " · 아직 만나지 못했어요"}</div></div></div>
             ${has ? `<div class="small" style="margin:calc(var(--u)*3) 0">${d.desc ?? ""}</div>` : ""}
@@ -379,7 +379,15 @@ export class GardenScene {
   }
 
   drawTree(p) {
-    const { x, y } = TREE, t = this.t, fill = this.S.treeStock / treeCap(this.S);
+    // the trunk and canopy never change: paint them once into a list of pixels, then stamp it
+    if (!this.treePx) { const rec = { put: (X, Y, c) => list.push(X, Y, c) }, list = []; this.paintTree(rec); this.treePx = list; }
+    const L = this.treePx;
+    for (let i = 0; i < L.length; i += 3) p.put(L[i], L[i + 1], L[i + 2]);
+    this.drawFruit(p);
+  }
+
+  paintTree(p) {
+    const { x, y } = TREE;
     const bark = [hex("#2e1a0c"), hex("#4a2c14"), hex("#6a421e"), hex("#8e5c2c")];
     for (let j = 0; j < 46; j++) for (let i = -6; i <= 6; i++) {
       const w = 4 + (j > 38 ? (j - 38) * 0.8 : 0) + Math.sin(j * 0.3) * 0.6;
@@ -395,6 +403,10 @@ export class GardenScene {
       let k = Math.round(3 - bk * 1.6 - best * 1.3 + n * 2);
       p.put(x + i, y + j, leaf[Math.max(0, Math.min(4, k))]);
     }
+  }
+
+  drawFruit(p) {
+    const { x, y } = TREE, t = this.t, fill = this.S.treeStock / treeCap(this.S);
     // glowing fruit: more when the stock is fuller
     const n = Math.round(3 + fill * 12);
     for (let i = 0; i < n; i++) {

@@ -159,19 +159,28 @@ export class TitleScene {
 
   options() {
     const S = this.g.save;
-    const ov = el("div", { class: "overlay" }, `<div class="ov-title">설정</div>
-      <div class="col" style="align-items:center">
-        <label class="row"><input type="checkbox" class="fs" ${S.settings.fullscreen !== false ? "checked" : ""}> 자동 전체화면</label>
-        <label class="row"><input type="checkbox" class="mute" ${S.settings.mute ? "checked" : ""}> 소리 끄기</label>
-        <label class="row"><input type="checkbox" class="mus" ${S.settings.musicOff ? "checked" : ""}> 배경음악 끄기</label>
-        <label class="row"><input type="checkbox" class="hstop" ${S.settings.hitStop !== false ? "checked" : ""}> 타격 정지 (히트스톱)</label>
-        <label class="row"><input type="checkbox" class="lessflash" ${S.settings.lessFlash ? "checked" : ""}> 번쩍임 줄이기</label>
-        <label class="row"><input type="checkbox" class="auto" ${S.settings.autoAttack ? "checked" : ""}> 평타 자동 사용</label>
-        <label class="row">화면 흔들림 <input type="range" class="shake" min="0" max="1" step="0.25" value="${S.settings.shake}"></label>
-        ${auth.loggedIn ? '<button class="btn pwc">비밀번호 변경</button>' : ""}
-        <button class="btn wipe">데이터 초기화</button>
+    const ck = (cls, on, label) => `<label class="set-row"><span>${label}</span><input type="checkbox" class="${cls}" ${on ? "checked" : ""}></label>`;
+    const ov = el("div", { class: "overlay" }, `<div class="panel settings">
+      <div class="ov-title">설정</div>
+      <div class="set-group"><b>화면</b>
+        ${ck("fs", S.settings.fullscreen !== false, "자동 전체화면")}
+        <label class="set-row"><span>화면 흔들림</span><input type="range" class="shake" min="0" max="1" step="0.25" value="${S.settings.shake}"></label>
+        ${ck("lessflash", S.settings.lessFlash, "번쩍임 줄이기")}
+      </div>
+      <div class="set-group"><b>소리</b>
+        ${ck("mute", S.settings.mute, "소리 끄기")}
+        ${ck("mus", S.settings.musicOff, "배경음악 끄기")}
+      </div>
+      <div class="set-group"><b>전투</b>
+        ${ck("auto", S.settings.autoAttack, "평타 자동 사용")}
+        ${ck("hstop", S.settings.hitStop !== false, "타격 정지 (히트스톱)")}
+      </div>
+      <div class="row set-foot">
+        ${auth.loggedIn ? '<button class="btn sm pwc">비밀번호 변경</button>' : ""}
+        <button class="btn sm danger wipe">데이터 초기화</button>
+        <span style="flex:1"></span>
         <button class="btn primary close">닫기</button>
-      </div>`);
+      </div></div>`);
     ov.querySelector(".fs").onchange = (e) => { S.settings.fullscreen = e.target.checked; setAutoFullscreen(e.target.checked); if (e.target.checked) enterFullscreen(); save(S); };
     ov.querySelector(".mute").onchange = (e) => { S.settings.mute = e.target.checked; setMuted(S.settings.mute); save(S); };
     ov.querySelector(".mus").onchange = (e) => { S.settings.musicOff = e.target.checked; setMusicOff(S.settings.musicOff); save(S); };
@@ -227,10 +236,10 @@ export class TitleScene {
       (Math.sin(an) < 0 ? behind : front).push({ id, x, y, s: Math.sin(an) });
     });
     const show = this.t > 1.6;
-    if (show) for (const s of behind) drawSpirit(p, s.x, s.y, { id: s.id, stage: 1, t: this.t + s.x * 0.01, alpha: 0.7, glow: 0.6, key: "tb" + s.x });
+    if (show) for (const s of behind) drawSpirit(p, s.x, s.y, { id: s.id, stage: 1, t: this.t + s.x * 0.01, alpha: 0.7, glow: 0.6, key: "t" + s.id });
     this.logo.draw(p, ox, oy, this.t);
     if (this.t > this.logo.letters[8].delay + 0.45) drawGem(p, gx, gy + 3, this.t, 5);
-    if (show) for (const s of front) drawSpirit(p, s.x, s.y, { id: s.id, stage: 2, t: this.t + s.x * 0.01, key: "tf" + s.x });
+    if (show) for (const s of front) drawSpirit(p, s.x, s.y, { id: s.id, stage: 2, t: this.t + s.x * 0.01, key: "t" + s.id });
   }
 }
 

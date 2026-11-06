@@ -18,6 +18,10 @@ export function lookOf(id) {
  * this many px wide, for icons), still (no floating bob) }
  */
 const sprites = new Map();
+// a time bucket for re-rendering: it refills by this many ms each frame (up to a cap) and each render spends
+// what it took, so a slow phone keeps its frame rate and spirits just animate a little less often
+const RENDER_MS_PER_FRAME = 4, RENDER_MS_CAP = 10;
+let budgetFrame = -1, budget = RENDER_MS_CAP;
 /**
  * Spirits are costly to draw, so in the world each one is rendered into its own little frame 12 times a
  * second and stamped from there in between. o.key names the instance (a garden walker's uid, say).
@@ -29,10 +33,14 @@ export function drawSpirit(p, x, y, o) {
   const half = Math.ceil(54 * (o.scale ?? 1) * (lookOf(o.id).size ?? 1) * [0, 0.62, 0.8, 1][st]) + 4;
   let c = sprites.get(key);
   if (!c || c.half !== half) { if (sprites.size > 160) sprites.clear(); c = { half, frame: createFrame(half * 2, half * 2, -half, -half), qt: null }; sprites.set(key, c); }
-  if (c.qt !== qt || c.a !== a || c.g !== g) {
+  const fid = Math.floor(performance.now() / 12);
+  if (fid !== budgetFrame) { budget = Math.min(RENDER_MS_CAP, budget + RENDER_MS_PER_FRAME * Math.min(3, fid - budgetFrame)); budgetFrame = fid; }
+  if (c.qt === null || ((c.qt !== qt || c.a !== a || c.g !== g) && budget > 0)) {
+    const t0 = performance.now();
     clearFrame(c.frame);
     drawSpiritNow(painterFor(c.frame), 0, 0, { ...o, t: qt / 10, alpha: a, glow: g, still: true });
     c.qt = qt; c.a = a; c.g = g;
+    budget -= performance.now() - t0;
   }
   const F = c.frame, W = F.w, bob = o.still ? 0 : S(t * 1.7) * 1.3, X0 = Math.round(x) - half, Y0 = Math.round(y + bob) - half;
   for (let j = 0; j < W; j++) for (let i = 0; i < W; i++) {

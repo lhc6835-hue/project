@@ -280,7 +280,8 @@ function dragon(L, st, t, px) {
   const Hx = p0.x + hx * 3, Hy = p0.y + hy * 3 - 1.5, open = (S(t * 1.3) * 0.5 + 0.5) * 0.25;
   const headD = (u, v) => smin(smin(ell(u, v, Hx, Hy, 5.4 * hs, 4.2 * hs, 0.1), ell(u, v, Hx + 5 * hs, Hy + 0.6 * hs, 4.4 * hs, 2.3 * hs, 0.05), 1.5), ell(u, v, Hx + 3.8 * hs, Hy + 2.8 * hs, 4.2 * hs, 1.3 * hs, 0.25 + open), 0.8);
   const bodyMark = q.wire ? null : anyMark(...[0.2, 0.45, 0.7].map((s) => { const m = P[Math.floor(s * (n - 1))]; return spiral(m.x, m.y, m.r * 0.85, 1.3, 0.55); }), lineMark(Hx - 2 * hs, Hy - 1.2 * hs, Hx + 4 * hs, Hy - 2.2 * hs, 0.5));
-  parts.push(part((u, v) => smin(strandD(P)(u, v), headD(u, v), 2), unionBB(strandBB(P), [Hx - 6 * hs, Hy - 5 * hs, Hx + 10 * hs, Hy + 5 * hs]), { z: 2, thick: 4, mark: bodyMark, c: [p0.x, p0.y], mat: q.wire ? "wire" : "body" }));
+  const bodyS = strandD(P);
+  parts.push(part((u, v) => smin(bodyS(u, v), headD(u, v), 2), unionBB(strandBB(P), [Hx - 6 * hs, Hy - 5 * hs, Hx + 10 * hs, Hy + 5 * hs]), { z: 2, thick: 4, mark: bodyMark, c: [p0.x, p0.y], mat: q.wire ? "wire" : "body" }));
   // spine: flames or fins every few segments
   const step = st === 1 ? 5 : 3;
   for (let i = 2; i < n - 3; i += step) {
@@ -360,7 +361,8 @@ function whale(L, st, t, px) {
   for (let i = 0; i <= 12; i++) { const s = i / 12; P.push({ x: 10 - s * 34 * len, y: b + S(s * 2.4 - t * 1.4) * 2 * s + s * 1.5, r: (s < 0.35 ? lerp(8.5, 8, s / 0.35) : lerp(8, 1.6, (s - 0.35) / 0.65)) * (st === 1 ? 0.85 : 1) }); }
   const head = (u, v) => ell(u, v, 9, b - 0.5, 9.5, 7.5, 0.05);
   const bellyY = (u) => b + 3.5 - Math.max(0, -u) * 0.05;
-  parts.push(part((u, v) => smin(strandD(P)(u, v), head(u, v), 3), unionBB(strandBB(P), [-1, b - 8, 19, b + 8]), { z: 2, thick: 6, mark: anyMark((u, v, px) => v > bellyY(u) && Math.abs(fract(v / 1.8) - 0.5) < Math.max(0.12, px * 0.3), spiral(2, b - 2.5, 4.5, 1.6, 0.7), spiral(-12 * len, b, 3, 1.4, 0.6)) }));
+  const bodyS = strandD(P);
+  parts.push(part((u, v) => smin(bodyS(u, v), head(u, v), 3), unionBB(strandBB(P), [-1, b - 8, 19, b + 8]), { z: 2, thick: 6, mark: anyMark((u, v, px) => v > bellyY(u) && Math.abs(fract(v / 1.8) - 0.5) < Math.max(0.12, px * 0.3), spiral(2, b - 2.5, 4.5, 1.6, 0.7), spiral(-12 * len, b, 3, 1.4, 0.6)) }));
   const e = P[12];
   for (const s of [-1, 1]) parts.push(part((u, v) => ell(u, v, e.x - 4, e.y + s * 4 + sw * 0.4, 5.5, 2, s * 0.8), [e.x - 10, e.y - 8, e.x + 2, e.y + 8], { mat: "membrane", z: s > 0 ? 2.3 : 1.4, mark: (u, v, px) => Math.abs(v - e.y - s * 4) < px * 0.5 }));
   // great pectoral fins, rowing like wings
@@ -583,10 +585,24 @@ export function drawBeast(p, x, y, look, o) {
   const Y0 = Math.floor(y + (bb[1] - cy) * sc) - 1, Y1 = Math.ceil(y + (bb[3] - cy) * sc) + 1;
   p.reset?.();
   const wire = look.q?.wire;
-  for (let Y = Y0; Y <= Y1; Y++) for (let X = X0; X <= X1; X++) {
+  // coarse pass: 4×4 pixel cells that no part (nor its flames or fringe) can reach are skipped whole
+  const CS = 4, cellR = CS * 0.71 * px + fringe + px * 1.5, cellsX = Math.ceil((X1 - X0 + 1) / CS);
+  const live = [];
+  for (let cyy = Y0; cyy <= Y1; cyy += CS) for (let cxx = X0; cxx <= X1; cxx += CS) {
+    const u = (cxx + CS / 2 - x) * f * px + cx, v = (cyy + CS / 2 - y) * px + cy;
+    // keep only the parts that can reach this cell, in draw order
+    const near = [];
+    for (const P of parts) {
+      const m = P.pad + cellR;
+      if (u < P.bb[0] - m || u > P.bb[2] + m || v < P.bb[1] - m || v > P.bb[3] + m) continue;
+      if (P.d(u, v) - (P.flare ? P.flare * 1.5 + 0.5 : 0) < cellR) near.push(P);
+    }
+    if (near.length) live.push(cxx, cyy, near);
+  }
+  for (let ci = 0; ci < live.length; ci += 3) { const cellParts = live[ci + 2]; for (let Y = live[ci + 1]; Y < Math.min(Y1 + 1, live[ci + 1] + CS); Y++) for (let X = live[ci]; X < Math.min(X1 + 1, live[ci] + CS); X++) {
     const u = (X + 0.5 - x) * f * px + cx, v = (Y + 0.5 - y) * px + cy;
     let hit = null, hd = 0, near = 1e9, flareHit = 0;
-    for (const P of parts) {
+    for (const P of cellParts) {
       if (u < P.bb[0] - P.pad || u > P.bb[2] + P.pad || v < P.bb[1] - P.pad || v > P.bb[3] + P.pad) continue;
       let d = P.d(u, v);
       if (P.mat === "flame") {
@@ -661,6 +677,7 @@ export function drawBeast(p, x, y, look, o) {
     if (hit.mat === "body" || hit.mat === "membrane" || hit.mat === "flame" || hit.mat === "glow" || hit.mat === "crystal" || (hit.mat === "void")) p.blendPx(X, Y, c, alpha * a0);
     else p.put(X, Y, c, a0);
     if (glow) p.add(X, Y, F[6], glow * glowK * a0);
+  }
   }
   // eyes
   for (const E of B.eyes) {

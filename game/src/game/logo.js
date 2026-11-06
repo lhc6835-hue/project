@@ -56,32 +56,39 @@ export class Logo {
       const filled = (gx, gy) => gy >= 0 && gy < 9 && gx >= 0 && gx < 7 && g[gy][gx] === "#";
       const cell = (px, py) => filled(Math.floor(px / s), Math.floor(py / s));
       const W = 7 * s, H = 9 * s;
-      // extrusion (deep 3D shadow), drawn first
-      for (let d = 5; d >= 1; d--) for (let py = 0; py < H; py++) for (let px = 0; px < W; px++)
-        if (cell(px, py)) p.put(lx + px + Math.ceil(d / 2), ly + py + d, ext[Math.min(3, d - 1)]);
-      // outer outline
-      for (let py = -2; py < H + 2; py++) for (let px = -2; px < W + 2; px++) {
-        if (cell(px, py)) continue;
-        let near = false;
-        for (let j = -2; j <= 2 && !near; j++) for (let i = -2; i <= 2; i++) if (Math.abs(i) + Math.abs(j) <= 2 && cell(px + i, py + j)) { near = true; break; }
-        if (near) p.put(lx + px, ly + py, ink);
+      // the letter's shape never changes: work out its extrusion, outline and bevel once
+      if (!L.shape) {
+        const ex = [], ol = [], fill = [];
+        for (let d = 5; d >= 1; d--) for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) if (cell(px, py)) ex.push(px + Math.ceil(d / 2), py + d, Math.min(3, d - 1));
+        for (let py = -2; py < H + 2; py++) for (let px = -2; px < W + 2; px++) {
+          if (cell(px, py)) continue;
+          let near = false;
+          for (let j = -2; j <= 2 && !near; j++) for (let i = -2; i <= 2; i++) if (Math.abs(i) + Math.abs(j) <= 2 && cell(px + i, py + j)) { near = true; break; }
+          if (near) ol.push(px, py);
+        }
+        for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) {
+          if (!cell(px, py)) continue;
+          const top = !cell(px, py - 1) || !cell(px, py - 2), left = !cell(px - 1, py);
+          const bottom = !cell(px, py + 1) || !cell(px, py + 2), right = !cell(px + 1, py);
+          let k = 3 - Math.floor((py / H) * 2.6);
+          if (top) k = 4; else if (left) k = Math.min(4, k + 1);
+          if (bottom) k = 0; else if (right) k = Math.max(0, k - 1);
+          fill.push(px, py, Math.max(0, Math.min(4, k)));
+        }
+        L.shape = { ex, ol, fill };
       }
+      const SH = L.shape;
+      for (let i = 0; i < SH.ex.length; i += 3) p.put(lx + SH.ex[i], ly + SH.ex[i + 1], ext[SH.ex[i + 2]]);
+      for (let i = 0; i < SH.ol.length; i += 2) p.put(lx + SH.ol[i], ly + SH.ol[i + 1], ink);
       // fill: element bands flowing sideways, bevelled, with a shine
-      for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) {
-        if (!cell(px, py)) continue;
+      for (let n = 0; n < SH.fill.length; n += 3) {
+        const px = SH.fill[n], py = SH.fill[n + 1], k = SH.fill[n + 2];
         const X = lx + px, Y = ly + py;
         const ph = ((X - ox) * 0.012 - t * 0.22 + (Y - oy) * 0.004) % 1, phw = (ph + 1) % 1;
         const bi = Math.floor(phw * 4), bf = phw * 4 - bi;
         const A = BANDS[bi], B = BANDS[(bi + 1) % 4];
         const useB = bf > 0.75 && (bf - 0.75) * 4 > BAYER[((Y & 3) << 2) | (X & 3)];
         const R = useB ? B : A;
-        // bevel: rim on top/left is bright, bottom/right dark; vertical gradient inside
-        const top = !cell(px, py - 1) || !cell(px, py - 2), left = !cell(px - 1, py);
-        const bottom = !cell(px, py + 1) || !cell(px, py + 2), right = !cell(px + 1, py);
-        let k = 3 - Math.floor((py / H) * 2.6);
-        if (top) k = 4; else if (left) k = Math.min(4, k + 1);
-        if (bottom) k = 0; else if (right) k = Math.max(0, k - 1);
-        k = Math.max(0, Math.min(4, k));
         let c = R[k];
         // shine sweep (a diagonal band)
         const sd = (X - ox) + (Y - oy) * 0.6 - sweep;

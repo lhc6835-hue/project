@@ -2,6 +2,7 @@
 <canvas id="c" style="image-rendering:pixelated"></canvas>
 <script type="module">
 // ?stage=3&ids=a,b,c&cw=70&ch=64&s=3&t=1.2  — every spirit (or the listed ones) at one stage; stage=all shows 1,2,3 side by side
+globalThis.NOCULL = new URLSearchParams(location.search).has("nocull");
 import { createFrame, composite, painterFor, hex } from "../src/px.js";
 import { drawSpirit } from "../src/game/spirit_art.js";
 import { SPIRITS, GRADES } from "../src/data/spirits.js";
