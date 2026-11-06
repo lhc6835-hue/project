@@ -5,7 +5,7 @@ import { join, relative, extname, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 const root = process.argv[2], out = process.argv[3];
 const here = dirname(fileURLToPath(import.meta.url));
-const TYPES = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".woff2": "font/woff2", ".md": "text/plain; charset=utf-8" };
+const TYPES = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".woff2": "font/woff2", ".md": "text/plain; charset=utf-8", ".png": "image/png", ".webmanifest": "application/manifest+json" };
 const files = {};
 const walk = (d) => { for (const n of readdirSync(d)) { const p = join(d, n); if (statSync(p).isDirectory()) walk(p); else if (TYPES[extname(n)]) files["/" + relative(root, p)] = [TYPES[extname(n)], readFileSync(p).toString("base64")]; } };
 walk(root);

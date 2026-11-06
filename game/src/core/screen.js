@@ -16,11 +16,13 @@ export class Screen {
     this.dim = 0;          // 0..1 darken (ultimate cut-ins)
     this.fit();
     addEventListener("resize", () => this.fit());
+    for (const ev of ["fullscreenchange", "webkitfullscreenchange", "orientationchange"]) (ev === "orientationchange" ? window : document).addEventListener(ev, () => setTimeout(() => this.fit(), 60));
   }
   fit() {
     const vw = innerWidth, vh = innerHeight;
     let s = Math.min(vw / W, vh / H);
-    if (s >= 2) s = Math.floor(s);          // whole pixels where there is room
+    // whole pixels when that costs little; otherwise fill the screen (fullscreen on tablets)
+    if (s >= 2 && Math.floor(s) / s > 0.9) s = Math.floor(s);
     document.documentElement.style.setProperty("--u", s + "px");
     this.scale = s;
   }

@@ -109,6 +109,6 @@ export default {
     if (!f) return new Response("not found", { status: 404 });
     let b = cache.get(path);
     if (!b) { b = Uint8Array.from(atob(f[1]), (c) => c.charCodeAt(0)); cache.set(path, b); }
-    return new Response(b, { headers: { "content-type": f[0], "cache-control": path.endsWith(".woff2") ? "public, max-age=604800" : "public, max-age=120" } });
+    return new Response(b, { headers: { "content-type": f[0], "cache-control": /\.(woff2|png)$/.test(path) ? "public, max-age=604800" : "public, max-age=120" } });
   },
 };

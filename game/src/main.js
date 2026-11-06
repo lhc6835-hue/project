@@ -7,6 +7,7 @@ import { skillFxIds } from "./data/skills.js";
 import { DECOR_IDS } from "./game/room.js";
 import { auth } from "./core/auth.js";
 import { openSave } from "./core/session.js";
+import { bindAutoFullscreen } from "./core/fullscreen.js";
 
 const COMMON_FX = [
   "critters/slime", "critters/bat", "critters/flying-skull", "critters/ghost", "critters/eyeball", "critters/wisp",
@@ -34,6 +35,7 @@ async function boot() {
   game.input = new Input();
   await auth.restore();
   game.save = (await openSave(auth.account)).save;
+  bindAutoFullscreen(game.save.settings.fullscreen !== false);
   const ui = document.getElementById("ui");
   ui.innerHTML = `<div class="pass" style="position:absolute;inset:0;display:grid;place-items:center;color:#a59fc4">불러오는 중…</div>`;
   await Promise.all([loadFx([...skillFxIds(), ...COMMON_FX, ...DECOR_IDS]), document.fonts.load("8px Galmuri11"), document.fonts.load("bold 8px Galmuri11")]);

@@ -13,6 +13,7 @@ import { auth } from "../core/auth.js";
 import { openSave } from "../core/session.js";
 import { SPIRIT } from "../data/spirits.js";
 import { toast } from "../ui/dom.js";
+import { setAutoFullscreen, enterFullscreen } from "../core/fullscreen.js";
 
 function paintSky() {
   const buf = new Uint32Array(W * H);
@@ -159,6 +160,7 @@ export class TitleScene {
     const S = this.g.save;
     const ov = el("div", { class: "overlay" }, `<div class="ov-title">설정</div>
       <div class="col" style="align-items:center">
+        <label class="row"><input type="checkbox" class="fs" ${S.settings.fullscreen !== false ? "checked" : ""}> 자동 전체화면</label>
         <label class="row"><input type="checkbox" class="mute" ${S.settings.mute ? "checked" : ""}> 소리 끄기</label>
         <label class="row"><input type="checkbox" class="auto" ${S.settings.autoAttack ? "checked" : ""}> 평타 자동 사용</label>
         <label class="row">화면 흔들림 <input type="range" class="shake" min="0" max="1" step="0.25" value="${S.settings.shake}"></label>
@@ -166,6 +168,7 @@ export class TitleScene {
         <button class="btn wipe">데이터 초기화</button>
         <button class="btn primary close">닫기</button>
       </div>`);
+    ov.querySelector(".fs").onchange = (e) => { S.settings.fullscreen = e.target.checked; setAutoFullscreen(e.target.checked); if (e.target.checked) enterFullscreen(); save(S); };
     ov.querySelector(".mute").onchange = (e) => { S.settings.mute = e.target.checked; setMuted(S.settings.mute); save(S); };
     ov.querySelector(".auto").onchange = (e) => { S.settings.autoAttack = e.target.checked; save(S); };
     ov.querySelector(".shake").oninput = (e) => { S.settings.shake = +e.target.value; window.SHAKE = S.settings.shake; save(S); };

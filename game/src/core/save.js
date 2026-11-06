@@ -19,7 +19,7 @@ export function fresh() {
     treeStock: 0, lastSeen: Date.now(),
     gacha: { unlocked: false, pity: 0, total: 0, freeTen: false },
     best: 0, depth: 1, depthMax: 1, runs: 0, bossKills: { golem: 0, void: 0 },
-    settings: { autoAttack: true, shake: 1, mute: false },
+    settings: { autoAttack: true, shake: 1, mute: false, fullscreen: true },
     seen: {},
   };
 }
