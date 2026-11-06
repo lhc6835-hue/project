@@ -3,6 +3,7 @@ import { hex, mix, fit, toHex, clamp } from "../px.js";
 import { Actor } from "./actor.js";
 import { drawRig, makeSkin, lerpPose, anchor, SKIN } from "../rig/rig.js";
 import { idlePose, movePose, sampleKeys, HURT, DEAD } from "./poses.js";
+import { Animator, Scarf, Trail, Dust } from "./animator.js";
 import { Action } from "./actions.js";
 import { ELEMENTS } from "../data/elements.js";
 import { moveset } from "../data/skills.js";
@@ -25,6 +26,8 @@ export class Hero extends Actor {
     this.ghosts = []; this.basicQueued = false; this.dashT = 0; this.dashDir = [1, 0];
     this.speed = this.stats.speed;
     this.contactCd = 0;
+    this.anim = new Animator(); this.scarf = new Scarf([0, 6, 8, 10][this.stage], 3.4); this.trail = new Trail(); this.dust = new Dust();
+    this.cur = {}; this.prevX = this.x; this.prevY = this.y; this.prevFlip = this.flip; this.vel = [0, 0]; this.stepU = 0; this.wasAir = false; this.lastHand = null;
     this.buildLook();
   }
 
@@ -94,6 +97,7 @@ export class Hero extends Actor {
     const a = new Action(this, m, this.world);
     this.act = this.world.run(a);
     this.actFrom = { ...this.lastPose };
+    this.anim.snap({ turn: 0.85 }, ["turn"]); // face the target at once instead of swivelling through odd poses
     if (slot !== "basic") {
       const cdr = slot === "ult" ? this.stats.ultCdr : this.stats.cdr;
       this.cd[slot] = m.cd * (1 - Math.min(0.6, cdr));
@@ -119,14 +123,14 @@ export class Hero extends Actor {
     for (const g of this.ghosts) g.t -= dt;
     this.ghosts = this.ghosts.filter((g) => g.t > 0);
     if (this.stats.regen && !this.dead) this.heal(this.maxHp * this.stats.regen * dt);
-    if (this.dead) return;
+    if (this.dead) return this.animate(dt);
     const inp = this.input ?? { x: 0, y: 0 };
     // dash
     if (this.dashT > 0) {
       this.dashT -= dt;
       this.x += this.dashDir[0] * 330 * dt; this.y += this.dashDir[1] * 190 * dt;
       if (Math.random() < 0.7) this.ghost();
-      return;
+      return this.animate(dt);
     }
     if (this.act && !this.act.busy) {
       this.act = null;
@@ -144,27 +148,64 @@ export class Hero extends Actor {
       if (!this.busy && Math.abs(inp.x) > 0.2) this.flip = inp.x < 0;
       this.walkT += dt * Math.min(1, L);
     }
+    this.animate(dt);
   }
 
-  pose() {
-    if (this.dead) return DEAD;
-    if (this.st.freeze > 0) return this.lastPose;
-    let p;
-    if (this.dashT > 0) p = { lean: 0.6, aN: -0.9, aF: -1.1, lN: 0.7, lF: -0.8, crouch: 1, z: this.stage >= 3 ? 6 : 1 };
-    else if (this.act && this.act.busy) {
+  /** Where this frame's motion comes from, and the spring that smooths it into the drawn pose. */
+  target() {
+    this.spinFlip = false;
+    if (this.dead) return [DEAD, "hurt"];
+    if (this.dashT > 0) return [{ turn: 0.95, lean: 0.62, aN: -1.1, aF: -1.3, lN: 0.75, lF: -0.85, crouch: 2, sx: 1.16, sy: 0.9, plant: false, z: this.stage >= 3 ? 6 : 1 }, "act"];
+    if (this.act && this.act.busy) {
       const raw = sampleKeys(this.act.keys, this.act.t, lerpPose);
-      const blend = clamp((this.act.t + (this.act.def.windup ?? 0)) / 0.06);
-      p = blend < 1 ? lerpPose(this.actFrom ?? {}, raw, blend) : raw;
-      if (raw.spin) this.spinFlip = Math.floor(this.act.t * 22) % 2 === 1;
-      else this.spinFlip = false;
-      if (this.stage >= 3) p = { ...p, z: Math.max(p.z ?? 0, 3) };
-    } else if (this.hitFlash > 0.02) p = lerpPose(this.lastPose, HURT, 0.7);
-    else if (this.moving) p = movePose(this.stage, this.el, this.walkT);
-    else p = idlePose(this.stage, this.el, this.t);
-    if (!(this.act && this.act.busy)) this.spinFlip = false;
-    this.lastPose = p;
-    return p;
+      let p = { ...raw };
+      if (raw.spin) {
+        // a full turn: profile → front → other profile → front → back to profile
+        const s = clamp(this.act.t / 0.26);
+        p.turn = 0.85 * Math.abs(Math.cos(s * Math.PI * 2));
+        this.spinFlip = s > 0.25 && s < 0.75;
+      }
+      if (this.stage >= 3) { p.z = Math.max(p.z ?? 0, 3); p.plant = false; }
+      return [p, "act"];
+    }
+    if (this.moving) return [movePose(this.stage, this.el, this.walkT, 1), "move"];
+    return [idlePose(this.stage, this.el, this.t), "move"];
   }
+
+  animate(dt) {
+    if (this.st.freeze > 0) return;
+    const [tg, mode] = this.target();
+    const out = this.anim.update(tg, dt, mode);
+    // feel: squash on landing and turning, dust on every footfall
+    const air = (tg.z ?? 0) > 2 || tg.plant === false;
+    if (this.wasAir && !air) { this.anim.push({ sy: -0.14, sx: 0.1 }); this.dust.puff(this.x, this.y, 5, 0); }
+    this.wasAir = air;
+    if (this.flip !== this.prevFlip && !this.spinFlip) { this.anim.push({ sx: -0.16, sy: 0.05, lean: -0.15 }); if (this.moving && this.stage < 3) this.dust.puff(this.x, this.y, 4, this.flip ? 1 : -1); }
+    this.prevFlip = this.flip;
+    if (this.moving && this.stage < 3) {
+      const per = (this.stage === 1 ? 0.62 : 0.46) / ({ fire: 1.05, water: 0.9, wind: 1.18, earth: 0.86 }[this.el] ?? 1);
+      const u = this.walkT / per * 2;
+      if (Math.floor(u) !== Math.floor(this.stepU)) this.dust.puff(this.x - (this.flip ? -4 : 4), this.y, this.stage === 2 ? 3 : 2, this.flip ? 1 : -1);
+      this.stepU = u;
+    }
+    if (dt > 0) { this.vel[0] += ((this.x - this.prevX) / dt - this.vel[0]) * 0.3; this.vel[1] = (this.y - this.prevY) / dt; }
+    this.prevX = this.x; this.prevY = this.y;
+    // where the body actually is this frame
+    const f = this.flip ? -1 : 1;
+    const rx = this.x + f * (out.x ?? 0), ry = this.y - this.z + (out.y ?? 0) - (out.z ?? 0);
+    const neck = anchor(out, "neck"), flipNow = this.spinFlip ? !this.flip : this.flip, ff = flipNow ? -1 : 1;
+    this.scarf.update([rx + ff * neck[0], ry + neck[1]], dt, [this.vel[0] + (this.dashT > 0 ? -ff * 400 : 0), 0], this.t);
+    // smear behind a fast hand during a move
+    if (this.act && this.act.busy && this.act.t > -0.06 && this.act.t < 0.24) {
+      const h = anchor(out, "handN"), hx = rx + ff * h[0], hy = ry + h[1];
+      if (this.lastHand && Math.hypot(hx - this.lastHand[0], hy - this.lastHand[1]) > 2.5) this.trail.add(hx, hy, this.stage >= 2 ? 0.14 : 0.1);
+      this.lastHand = [hx, hy];
+    } else this.lastHand = null;
+    this.trail.update(dt); this.dust.update(dt);
+    this.cur = out; this.lastPose = out;
+  }
+
+  pose() { return this.cur; }
 
   draw(p) {
     const pose = this.pose();
@@ -187,14 +228,19 @@ export class Hero extends Actor {
         if (d < 1) p.add(Math.round(cx + dx), Math.round(cy + dy), this.glowC, 0.05 * k * (1 - d));
       }
     }
+    p.reset();
+    this.dust.draw(p);
+    if (!this.dead) this.scarf.draw(p, this.accent, this.stage >= 3 ? this.glowC : null);
     drawRig(p, { x: this.x, y: this.y - this.z, pose, flip, skin: this.skin, decor: this.decor, tint: this.hitFlash > 0 ? hex("#ffffff") : null, alpha: flicker ? 0.45 : 1 });
+    p.reset();
+    this.trail.draw(p, this.ramps.main.map((c) => (typeof c === "number" ? c : hex(c))), this.glowC);
     if (this.stage >= 3 && !this.dead) this.drawCrown(p, pose, flip);
   }
 
   /** Awakened spirits sit on the head as a crown of their element. */
   drawCrown(p, pose, flip) {
     const [hx, hy] = anchor(pose, "headTop");
-    const x = Math.round(this.x + (flip ? -hx : hx)), y = Math.round(this.y - this.z + hy + (pose.y ?? 0) - (pose.z ?? 0));
+    const x = Math.round(this.x + (flip ? -1 : 1) * ((pose.x ?? 0) + hx)), y = Math.round(this.y - this.z + hy + (pose.y ?? 0) - (pose.z ?? 0));
     const A = this.accent, g = this.glowC, t = this.t;
     p.reset();
     const flick = (i) => Math.round(Math.sin(t * 9 + i * 1.7) * 1);
@@ -208,7 +254,7 @@ export class Hero extends Actor {
     if (this.def.crown) for (let i = -1; i <= 1; i++) { p.put(x + i * 3, y - 8, hex("#ffd84a")); p.add(x + i * 3, y - 8, hex("#ffd84a"), 0.8); }
   }
 
-  onHurt() { this.iframes = Math.max(this.iframes, 0.35); }
+  onHurt() { this.iframes = Math.max(this.iframes, 0.35); this.anim.push({ lean: -0.4, head: -0.35, x: -2.5, sx: -0.08, sy: 0.06, aF: 0.6, aN: 0.4 }); }
   die() {
     if (this.dead) return;
     this.dead = true; this.hp = 0; this.act = null; this.clearStatusFx();

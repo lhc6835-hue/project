@@ -1,0 +1,49 @@
+<!doctype html><html><body style="margin:0;background:#000">
+<canvas id="c" style="image-rendering:pixelated"></canvas>
+<script type="module">
+// ?el=fire&stage=2&script=idle:0.6,walk:0.8,turn,basic,s1&every=3&cw=64&ch=60
+import { createFrame, clearFrame, composite, painterFor, hex, loadFx } from "../src/px.js";
+import { World } from "../src/game/world.js";
+import { Hero } from "../src/game/hero.js";
+import { heroStats } from "../src/data/spirits.js";
+import { skillFxIds } from "../src/data/skills.js";
+const q = new URLSearchParams(location.search);
+const el = q.get("el") ?? "fire", stage = +(q.get("stage") ?? 2), every = +(q.get("every") ?? 3), CW = +(q.get("cw") ?? 64), CH = +(q.get("ch") ?? 60), S = +(q.get("s") ?? 3), fx = q.get("fx") !== "0";
+await loadFx([...skillFxIds(), "status/burning", "ui/damage-number", "ui/crit-number", "impacts/hit-spark"]);
+const id = { fire: "sala", water: "undi", wind: "sylphi", earth: "nomi" }[el];
+const world = new World({ x0: 0, x1: 2000, y0: 0, y1: 400 });
+const sp = { id, lv: 20, stage };
+const hero = new Hero({ spirit: sp, stats: heroStats(sp), x: 300, y: 200 });
+world.hero = hero; world.add(hero);
+const frame = createFrame(600, 260); frame.ox = 0; frame.oy = 0;
+const cells = [];
+const steps = (q.get("script") ?? "idle:0.6,walk:0.8,turn,basic").split(",");
+let t = 0, n = 0;
+const dt = 1 / 60;
+const tick = () => { hero.input = cur; world.update(dt); n++; if (n % every === 0) grab(); };
+let cur = { x: 0, y: 0 };
+const grab = () => {
+  frame.ox = Math.round(hero.x - CW / 2); frame.oy = Math.round(hero.y - CH + 8);
+  clearFrame(frame); const p = painterFor(frame);
+  for (let x = 0; x < CW; x++) for (let y = CH - 8; y < CH; y++) frame.color[y * frame.w + x] = hex("#2a2638");
+  world.draw(p);
+  const c = new Uint8ClampedArray(frame.w * frame.h * 4); composite(frame, c, hex("#1c1926"));
+  const cell = new Uint8ClampedArray(CW * CH * 4);
+  for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) { const si = (y * frame.w + x) * 4, di = (y * CW + x) * 4; cell.set(c.subarray(si, si + 4), di); }
+  cells.push(cell);
+};
+for (const st of steps) {
+  const [k, v] = st.split(":");
+  if (k === "idle") { cur = { x: 0, y: 0 }; for (let i = 0; i < (+v) * 60; i++) tick(); }
+  else if (k === "walk") { cur = { x: 1, y: 0 }; for (let i = 0; i < (+v) * 60; i++) tick(); }
+  else if (k === "back") { cur = { x: -1, y: 0 }; for (let i = 0; i < (+v) * 60; i++) tick(); }
+  else if (k === "turn") { cur = { x: -1, y: 0 }; for (let i = 0; i < 9; i++) tick(); cur = { x: 0, y: 0 }; for (let i = 0; i < 12; i++) tick(); }
+  else if (k === "dash") { hero.tryDash([1, 0]); for (let i = 0; i < 30; i++) tick(); }
+  else { cur = { x: 0, y: 0 }; hero.tryAct(k); const end = (hero.act?.def.recover ?? 0.3) + (hero.act?.def.windup ?? 0.2) + 0.15; for (let i = 0; i < end * 60; i++) tick(); }
+}
+const cols = +(q.get("cols") ?? 16), rows = Math.ceil(cells.length / cols);
+const cv = document.getElementById("c"); cv.width = CW * cols; cv.height = CH * rows; cv.style.width = CW * cols * S + "px"; cv.style.height = CH * rows * S + "px";
+const ctx = cv.getContext("2d");
+cells.forEach((cell, i) => { const im = new ImageData(cell, CW, CH); ctx.putImageData(im, (i % cols) * CW, Math.floor(i / cols) * CH); });
+window.done = cells.length;
+</script></body></html>

@@ -40,7 +40,7 @@ export const SKILLS = {
     3: {
       basic: {
         name: "업화 강타", desc: "두 팔로 내려찍어 앞을 불바다로 만든다.", pose: "cleave", windup: 0.32, recover: 0.5,
-        fx: [{ t: -0.32, id: "melee/heavy-cleave" }, { t: 0.02, id: "explosions/small-explosion", dx: 44, opts: { size: 0.8 } }],
+        fx: [{ t: -0.32, id: "melee/heavy-cleave", dur: 0.9 }, { t: 0.02, id: "explosions/small-explosion", dx: 44, opts: { size: 0.8 }, dur: 0.7 }],
         hits: [{ t: 0.0, box: [0, 72, 24], dmg: 1.4, stop: 0.12, kb: 140, st: { burn: 3 } }, { t: 0.08, circ: [30, 44], dmg: 0.8 }],
         cam: [{ t: 0, shake: 3 }],
       },
@@ -93,7 +93,7 @@ export const SKILLS = {
     3: {
       basic: {
         name: "격류 베기", desc: "물을 두른 팔로 크게 내려 베고 물보라를 일으킨다.", pose: "cleave", windup: 0.3, recover: 0.42,
-        fx: [{ t: -0.3, id: "melee/heavy-cleave" }, { t: 0.02, id: "water/splash", dx: 40 }],
+        fx: [{ t: -0.3, id: "melee/heavy-cleave", dur: 0.9 }, { t: 0.02, id: "water/splash", dx: 40, dur: 0.9 }],
         hits: [{ t: 0.0, box: [0, 74, 24], dmg: 1.4, stop: 0.1, kb: 130, st: { slow: 2 } }, { t: 0.05, circ: [32, 40], dmg: 0.7 }],
         cam: [{ t: 0, shake: 2 }],
       },
@@ -171,7 +171,7 @@ export const SKILLS = {
     1: {
       basic: {
         name: "바위 주먹", desc: "돌처럼 단단한 주먹으로 올려친다.", pose: "uppercut", windup: 0.16, recover: 0.36,
-        fx: [{ t: -0.16, id: "melee/uppercut" }, { t: 0.08, id: "impacts/blunt-hit", dx: 30, dy: -4 }],
+        fx: [{ t: -0.16, id: "melee/uppercut" }, { t: 0.08, id: "impacts/blunt-hit", dx: 30, dy: -4, dur: 0.5 }],
         hits: [{ t: 0.076, box: [0, 44, 18], dmg: 1.25, stop: 0.1, kb: 110, up: 60 }],
         cam: [{ t: 0.08, shake: 2 }],
       },
@@ -185,7 +185,7 @@ export const SKILLS = {
     2: {
       basic: {
         name: "대지 망치", desc: "두 팔을 모아 땅을 내려찍는다.", pose: "cleave", windup: 0.26, recover: 0.44,
-        fx: [{ t: -0.26, id: "melee/hammer-smash", ramp: "stone" }],
+        fx: [{ t: -0.26, id: "melee/hammer-smash", ramp: "stone", dur: 0.9 }],
         hits: [{ t: 0.15, box: [6, 66, 22], dmg: 1.7, stop: 0.12, kb: 120, st: { stun: 0.3 } }],
         cam: [{ t: 0.15, shake: 3 }],
       },
@@ -203,7 +203,7 @@ export const SKILLS = {
     3: {
       basic: {
         name: "지진 내려찍기", desc: "땅을 내려쳐 충격파로 주위를 날려버린다.", pose: "slam", windup: 0.3, recover: 0.46,
-        fx: [{ t: 0, id: "impacts/ground-slam", opts: { reach: 70 } }],
+        fx: [{ t: 0, id: "impacts/ground-slam", opts: { reach: 70 }, dur: 0.55 }],
         hits: [{ t: 0.0, circ: [40, 6], dmg: 1.5, stop: 0.12, kb: 160, up: 40 }, { t: 0.12, circ: [66, 0], dmg: 0.8, kb: 100 }],
         cam: [{ t: 0, shake: 4 }],
       },
@@ -213,7 +213,7 @@ export const SKILLS = {
         ticks: [{ t0: 0.3, t1: 1.6, every: 0.3, box: [4, 186, 18], dmg: 0.9, st: { root: 0.5 } }],
       }, {
         name: "지진", desc: "대지를 뒤흔들어 넓은 범위의 적을 쓰러뜨린다.", pose: "slam", windup: 0.35, recover: 0.5, cd: 9,
-        fx: [{ t: 0, id: "nature/quake", opts: { reach: 120 } }],
+        fx: [{ t: 0, id: "nature/quake", opts: { reach: 120 }, dur: 1.3 }],
         hits: [{ t: 0.05, circ: [50, 0], dmg: 2.4, up: 50 }, { t: 0.3, circ: [124, 0], dmg: 2.4, stop: 0.1, st: { stun: 1.2 } }],
         cam: [{ t: 0.05, shake: 6 }, { t: 0.35, shake: 5 }],
       }],

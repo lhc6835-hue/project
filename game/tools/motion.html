@@ -1,0 +1,29 @@
+<!doctype html><html><body style="margin:0;background:#000">
+<canvas id="c" style="image-rendering:pixelated"></canvas>
+<script type="module">
+// rows of frames: ?rows=idle1,move1,... frames at 1/fps
+import { createFrame, composite, painterFor, hex } from "../src/px.js";
+import { drawRig, lerpPose } from "../src/rig/rig.js";
+import * as P from "../src/game/poses.js";
+const q = new URLSearchParams(location.search);
+const rows = (q.get("rows") ?? "idle:1,move:1,idle:2,move:2,idle:3,move:3").split(",");
+const N = +(q.get("n") ?? 12), fps = +(q.get("fps") ?? 12), CW = 44, CH = 56, S = +(q.get("s") ?? 3);
+const W = CW * N, H = CH * rows.length;
+const f = createFrame(W, H), p = painterFor(f);
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) f.color[y * W + x] = ((Math.floor(x / CW) + Math.floor(y / CH)) % 2) ? hex("#24202e") : hex("#1c1926");
+rows.forEach((r, j) => {
+  const [kind, a, b] = r.split(":");
+  for (let i = 0; i < N; i++) {
+    const t = i / fps;
+    let pose;
+    if (kind === "idle") pose = P.idlePose(+a, b ?? "fire", t);
+    else if (kind === "move") pose = P.movePose(+a, b ?? "fire", t);
+    else { const keys = P.archetype(kind, +(a ?? 0.2), +(b ?? 0.3)); pose = P.sampleKeys(keys, -(+(a ?? 0.2)) + t, lerpPose); }
+    p.reset();
+    for (let x = 0; x < CW; x++) f.color[(j * CH + CH - 6) * W + i * CW + x] = hex("#3a3448");
+    drawRig(p, { x: i * CW + 18, y: j * CH + CH - 6, pose, flip: false, ...(P.rigExtras ? P.rigExtras(pose) : {}) });
+  }
+});
+const c = document.getElementById("c"); c.width = W; c.height = H; c.style.width = W * S + "px"; c.style.height = H * S + "px";
+const ctx = c.getContext("2d"), img = ctx.createImageData(W, H); composite(f, img.data, null); ctx.putImageData(img, 0, 0);
+</script></body></html>

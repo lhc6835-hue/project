@@ -14,6 +14,11 @@ const { chromium } = require("playwright");
     else if (k === "up") await pg.keyboard.up(v);
     else if (k === "press") await pg.keyboard.press(v);
     else if (k === "shot") await pg.screenshot({ path: `${out}-${v}.png` });
+    else if (k === "zoom") {
+      const r = await pg.evaluate(() => { const h = window.game.scene.hero, c = document.getElementById("view").getBoundingClientRect(), s = c.width / 480; return { x: c.left + (h.x - 40) * s, y: c.top + (h.y - 52) * s, width: 80 * s, height: 60 * s }; });
+      await pg.screenshot({ path: `${out}-${v}.png`, clip: r });
+    }
+    else if (k === "frames") { const [n, ms, name] = v.split("x"); for (let i = 0; i < +n; i++) { const r = await pg.evaluate(() => { const h = window.game.scene.hero, c = document.getElementById("view").getBoundingClientRect(), s = c.width / 480; return { x: c.left + (h.x - 40) * s, y: c.top + (h.y - 52) * s, width: 80 * s, height: 60 * s }; }); await pg.screenshot({ path: `${out}-${name}${String(i).padStart(2, "0")}.png`, clip: r }); await pg.waitForTimeout(+ms); } }
     else if (k === "eval") console.log("eval:", await pg.evaluate(v));
     else if (k === "click") await pg.click(v);
     else if (k === "seed") { const data = require("fs").readFileSync(v.split("@")[0], "utf8"); await pg.evaluate((d) => localStorage.setItem("aether-heart-save-v1", d), data); await pg.goto("http://localhost:8123/index.html?" + (v.split("@")[1] || "")); await pg.waitForTimeout(1800); }
