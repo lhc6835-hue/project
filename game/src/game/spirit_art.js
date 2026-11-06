@@ -1,76 +1,82 @@
-// Spirits are luminous elemental beasts (see beasts.js for how they are built and drawn, looks.js for who
-// is what). This adds the drifting float, element motes around them and the crown of the legendary ones.
-import { hex, createFrame, clearFrame, painterFor } from "../px.js";
+// Spirits: a small bright body (see chibi.js) with a trail streaming behind it that carries the element.
+// Each on-screen spirit keeps a short history of where it has been (by o.key), so the trail follows it.
+import { hex, mix, createFrame, clearFrame, painterFor } from "../px.js";
 import { ELEMENTS } from "../data/elements.js";
 import { SPIRIT } from "../data/spirits.js";
 import { LOOKS } from "../data/looks.js";
-import { drawBeast, makeLook } from "./beasts.js";
+import { makeLook } from "./beasts.js";
+import { featuresOf, drawChibi, drawTrail } from "./chibi.js";
 
-const S = Math.sin, C = Math.cos;
+const S = Math.sin;
 const looks = new Map();
 export function lookOf(id) {
-  if (!looks.has(id)) { const d = SPIRIT[id]; looks.set(id, makeLook(d, LOOKS[id] ?? {}, ELEMENTS[d.el].ramp)); }
+  if (!looks.has(id)) {
+    const d = SPIRIT[id], L = makeLook(d, LOOKS[id] ?? {}, ELEMENTS[d.el].ramp);
+    L.eyeDark = mix(L.R[0], hex("#05040a"), 0.4);
+    L.feat = featuresOf(LOOKS[id] ?? {}, d.el);
+    looks.set(id, L);
+  }
   return looks.get(id);
 }
 
+const trails = new Map();
+const LIFE = [0, 0.85, 1.1, 1.4];
+
 /**
  * Draw a spirit with its middle at (x, y). o: { id, stage, t, flip, alpha, glow, scale, fit (fit inside a box
- * this many px wide, for icons), still (no floating bob) }
- */
-const sprites = new Map();
-// a time bucket for re-rendering: it refills by this many ms each frame (up to a cap) and each render spends
-// what it took, so a slow phone keeps its frame rate and spirits just animate a little less often
-const RENDER_MS_PER_FRAME = 4, RENDER_MS_CAP = 10;
-let budgetFrame = -1, budget = RENDER_MS_CAP;
-/**
- * Spirits are costly to draw, so in the world each one is rendered into its own little frame 12 times a
- * second and stamped from there in between. o.key names the instance (a garden walker's uid, say).
+ * this many px wide, for icons), still (no floating bob), key (which on-screen spirit this is) }
  */
 export function drawSpirit(p, x, y, o) {
-  if (o.fit || o.direct) return drawSpiritNow(p, x, y, o);
-  const t = o.t ?? 0, st = o.stage ?? 1, qt = Math.floor(t * 10), a = Math.round((o.alpha ?? 1) * 20) / 20, g = Math.round((o.glow ?? 1) * 10) / 10;
-  const key = `${o.key ?? o.id}|${o.id}|${st}|${o.flip ? 1 : 0}|${o.scale ?? 1}`;
-  const half = Math.ceil(54 * (o.scale ?? 1) * (lookOf(o.id).size ?? 1) * [0, 0.62, 0.8, 1][st]) + 4;
-  let c = sprites.get(key);
-  if (!c || c.half !== half) { if (sprites.size > 160) sprites.clear(); c = { half, frame: createFrame(half * 2, half * 2, -half, -half), qt: null }; sprites.set(key, c); }
-  const fid = Math.floor(performance.now() / 12);
-  if (fid !== budgetFrame) { budget = Math.min(RENDER_MS_CAP, budget + RENDER_MS_PER_FRAME * Math.min(3, fid - budgetFrame)); budgetFrame = fid; }
-  if (c.qt === null || ((c.qt !== qt || c.a !== a || c.g !== g) && budget > 0)) {
-    const t0 = performance.now();
-    clearFrame(c.frame);
-    drawSpiritNow(painterFor(c.frame), 0, 0, { ...o, t: qt / 10, alpha: a, glow: g, still: true });
-    c.qt = qt; c.a = a; c.g = g;
-    budget -= performance.now() - t0;
+  const d = SPIRIT[o.id], L = lookOf(o.id), F = L.feat, st = o.stage ?? 1, t = o.t ?? 0;
+  let sc = o.scale ?? 1, bx = x, by = y;
+  if (o.fit) { const r = [0, 4.6, 5.8, 7][st]; sc = o.fit / (r * 4.6); bx = x + r * sc * 0.55; }
+  const bob = o.fit || o.still ? 0 : S(t * 2.2) * 1.4;
+  by += bob;
+  // the trail: real history for spirits that move, a resting plume for still ones
+  let pts;
+  if (o.fit) pts = Array.from({ length: 10 }, (_, i) => ({ x: bx, y: by, age: i * LIFE[st] / 10, id: i }));
+  else {
+    const key = o.key ?? o.id;
+    let T = trails.get(key);
+    if (!T || t < T.last - 0.5 || t - T.last > 1) { T = { pts: [], last: t }; trails.set(key, T); if (trails.size > 120) trails.delete(trails.keys().next().value); }
+    if (t - T.last >= 1 / 18 || !T.pts.length) { T.pts.unshift({ x: bx, y: by, t0: t }); T.last = t; }
+    T.pts = T.pts.filter((q) => t - q.t0 < LIFE[st]);
+    pts = [{ x: bx, y: by, age: 0, id: -1 }, ...T.pts.map((q) => ({ x: q.x, y: q.y, age: t - q.t0, id: Math.round(q.t0 * 18) }))];
   }
-  const F = c.frame, W = F.w, bob = o.still ? 0 : S(t * 1.7) * 1.3, X0 = Math.round(x) - half, Y0 = Math.round(y + bob) - half;
-  for (let j = 0; j < W; j++) for (let i = 0; i < W; i++) {
-    const k = j * W + i, col = F.color[k], lt = F.light[k];
+  const oo = { ...o, scale: sc, el: d.el };
+  drawTrail(p, pts, L, F, oo);
+  const r = drawBody(p, bx, by, L, F, oo, o.id);
+  if (d.crown) {
+    const X = Math.round(bx), Y = Math.round(by - r * 1.9) - (F.horns ? 3 : 1), g = hex("#ffd84a"), w = hex("#fff6c0");
+    for (const dx of [-2, 0, 2]) p.put(X + dx, Y - (dx === 0 ? 1 : 0), dx === 0 ? w : g, o.alpha ?? 1);
+    for (let dx = -2; dx <= 2; dx++) p.put(X + dx, Y + 1, g, o.alpha ?? 1);
+  }
+  return { sc, r };
+}
+
+// bodies are small but made of many little shapes: each (spirit, stage, facing, size, 1/10 s frame of a
+// 2 s loop) is drawn once into a tiny frame and stamped after that
+const bodies = new Map();
+function drawBody(p, x, y, L, F, o, id) {
+  if (o.fit) return drawChibi(p, x, y, L, F, o);
+  const st = o.stage ?? 1, qt = Math.floor((o.t ?? 0) * 10) % 20, a = Math.round((o.alpha ?? 1) * 10) / 10, g = Math.round((o.glow ?? 1) * 5) / 5;
+  const key = `${id}|${st}|${o.flip ? 1 : 0}|${o.scale}|${qt}|${a}|${g}`;
+  let B = bodies.get(key);
+  if (!B) {
+    const half = Math.ceil([0, 4.6, 5.8, 7][st] * (L.chibi ?? 1) * 3.4 * o.scale) + 3;
+    const Fr = createFrame(half * 2, half * 2, -half, -half); clearFrame(Fr);
+    const r = drawChibi(painterFor(Fr), 0, 0, L, F, { ...o, t: qt / 10, alpha: a, glow: g });
+    B = { Fr, r }; bodies.set(key, B);
+    if (bodies.size > 900) bodies.delete(bodies.keys().next().value);
+  } else { bodies.delete(key); bodies.set(key, B); }
+  const Fr = B.Fr, W = Fr.w, X0 = Math.round(x) + Fr.ox, Y0 = Math.round(y) + Fr.oy;
+  for (let j = 0; j < Fr.h; j++) for (let i = 0; i < W; i++) {
+    const k = j * W + i, col = Fr.color[k], lt = Fr.light[k];
     if (col) { const al = col >>> 24; if (al >= 250) p.put(X0 + i, Y0 + j, col); else p.blendPx(X0 + i, Y0 + j, (col | 0xff000000) >>> 0, al / 255); }
     if (lt) p.add(X0 + i, Y0 + j, lt, 1);
   }
-}
-
-function drawSpiritNow(p, x, y, o) {
-  const d = SPIRIT[o.id], L = lookOf(o.id), st = o.stage ?? 1, t = o.t ?? 0, a = o.alpha ?? 1;
-  const bob = o.fit || o.still ? 0 : S(t * 1.7) * 1.3;
-  const r = drawBeast(p, x, y + bob, L, { stage: st, t, flip: o.flip, alpha: a, glow: o.glow, scale: o.scale, fit: o.fit, crown: d.crown });
-  // element motes drifting around the body
-  const ext = Math.max(r.bb[2] - r.bb[0], r.bb[3] - r.bb[1]) * r.sc * 0.5, el = d.el, F = L.F, n = 2 + st * 2;
-  for (let i = 0; i < n; i++) {
-    const ph = (t * (0.45 + (i % 3) * 0.17) + i / n) % 1;
-    let px, py;
-    if (el === "fire") { px = x + S(i * 2.3 + t * 2) * ext * 0.7; py = y - ext * 0.2 - ph * ext * 1.3; }
-    else if (el === "water") { px = x + S(i * 1.7) * ext; py = y + ext * 0.6 - ph * ext * 1.8; }
-    else if (el === "wind") { const an = i / n * 6.28 + t * 2.5; px = x + C(an) * ext * (1.1 + ph * 0.4); py = y + S(an) * ext * 0.45; }
-    else if (el === "light") { const an = i / n * 6.28 + t; px = x + C(an) * ext * 1.1; py = y + S(an) * ext - ph * 4; if (ph < 0.3) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) p.put(Math.round(px) + dx, Math.round(py) + dy, F[7], a * 0.8); }
-    else if (el === "dark") { px = x + S(i * 2.9 + t) * ext; py = y + ext * 0.5 - ph * ext * 1.6; }
-    else if (el === "code") { px = x + S(i * 2.1) * ext * 1.2; py = y - ext + ph * ext * 2; p.text(i % 2 ? "1" : "0", Math.round(px), Math.round(py), F[ph < 0.5 ? 6 : 4], { font: "mini", align: "center", a: a * (1 - ph) }); continue; }
-    else { px = x + S(i * 3.1) * ext; py = y + ext * 0.7 - ph * ext * 0.6; }
-    p.put(Math.round(px), Math.round(py), F[ph < 0.5 ? 7 : 5], a * (1 - ph));
-    p.add(Math.round(px), Math.round(py), F[5], 0.45 * a * (1 - ph));
-  }
-  return r;
+  return B.r;
 }
 
 /** About half the drawn height, for shadows and layout. */
-export const spiritRadius = (stage) => [0, 9, 12, 16][stage];
+export const spiritRadius = (stage) => [0, 6, 7, 9][stage];

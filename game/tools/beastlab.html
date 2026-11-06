@@ -15,7 +15,14 @@ const f = createFrame(W, H), p = painterFor(f);
 const t0 = performance.now();
 cells.forEach(({ id, st }, i) => { const x = (i % cols) * CW, y = Math.floor(i / cols) * CH;
   for (let yy = 0; yy < CH; yy++) for (let xx = 0; xx < CW; xx++) f.color[(y + yy) * W + x + xx] = q.get("bg") === "grass" ? hex(((xx + yy) % 7) ? "#1e3a22" : "#24442a") : (((i + Math.floor(i / cols)) % 2) ? hex("#141220") : hex("#1a1726"));
-  p.reset(); drawSpirit(p, x + CW / 2, y + CH / 2, { id, stage: st, t: T + i * 0.37, still: true, direct: q.get("direct") === "1" });
+  // fly a little loop for a second first so the trail has history (move=0 keeps it resting)
+  const mv = q.get("move") !== "0", key = "lab" + i;
+  for (let k = 0; k <= 80; k++) {
+    const tt = T + i * 0.37 + k / 40, a = k / 80 * Math.PI * 1.1;
+    const cx = x + CW / 2 + (mv ? (k / 80) * 24 - 2 : 0), cy = y + CH / 2 + (mv ? Math.sin(a * 2) * 3 : 0);
+    if (k < 80) { const tmp = createFrame(4, 4); drawSpirit(painterFor(tmp), cx, cy, { id, stage: st, t: tt, key }); }
+    else { p.reset(); drawSpirit(p, cx, cy, { id, stage: st, t: tt, key }); }
+  }
   p.reset(); p.text(id, x + 2, y + 2, hex(GRADES[SPIRITS.find((s) => s.id === id).grade].css), { font: "mini" });
 });
 document.title = "ms " + Math.round(performance.now() - t0);
