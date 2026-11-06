@@ -92,6 +92,7 @@ export class RunScene {
     if (M.hazard && !this.isBossFloor) this.world.hazard = new Hazard(M.hazard, this.world, this.scale().dmg);
     this.banner(this.isBossFloor ? `${this.floor}층 — 보스` : `${this.floor}층 · ${M.name}`, ELEMENTS[M.el]?.css ?? "#f1ecff");
     this.updateHud(true);
+    this.g.input.showTouch(true); // the card screen hides the touch controls; bring them back on every floor
   }
 
   // ------------------------------------------------------------ spawning
