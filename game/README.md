@@ -4,7 +4,8 @@
 
 - 로컬 실행: `cd game && python3 -m http.server 8123` 후 http://localhost:8123
 - 테스트 진입: `?scene=run&el=fire&stage=3` (속성 fire/water/wind/earth, 단계 1~3, `&floor=5` 보스)
-- 배포: `node tools/build-worker.mjs <정적 폴더> worker.js`로 정적 파일과 `server/worker.template.js`(계정 API)를 Worker 하나에 묶어 Cloudflare Workers에 올림. KV 바인딩 이름은 `DB`
+- 주소: https://aether-heart.pages.dev (예전 aether-heart.celesta.workers.dev는 새 주소로 넘어감)
+- 배포: `tools/deploy.sh` — 정적 파일과 `server/worker.template.js`(계정 API)를 `_worker.js` 하나에 묶어 Cloudflare Pages 프로젝트 `aether-heart`에 올림. KV 바인딩 이름은 `DB`
 - 계정: 회원가입/로그인/클라우드 저장. `dev` 등 예약 아이디는 가입 불가, `dev` 계정은 개발자 정령 SUDO를 받음
 - 조작: WASD 이동 · J 평타 · Q/E 스킬 · R 궁극기 · Space 회피 · P 일시정지 (모바일은 화면 조이스틱/버튼)
 
