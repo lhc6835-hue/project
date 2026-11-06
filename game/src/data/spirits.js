@@ -6,6 +6,7 @@ export const GRADES = {
   2: { name: "희귀", stars: "★★", mult: 1.15, rate: 0.3, css: "#58b4ec", pillar: ["#0e2e5a", "#1c76bc", "#58b4ec", "#c4ecff", "#ffffff"] },
   3: { name: "영웅", stars: "★★★", mult: 1.35, rate: 0.085, css: "#c684ff", pillar: ["#2b1252", "#6b2cc0", "#9a48ec", "#ecc8ff", "#ffffff"] },
   4: { name: "전설", stars: "★★★★", mult: 1.6, rate: 0.015, css: "#ffd84a", pillar: ["#5a3e10", "#d8a428", "#ffd84a", "#fffbe6", "#ffffff"] },
+  5: { name: "개발자", stars: "</>", mult: 3.0, rate: 0, css: "#3cd650", pillar: ["#05200c", "#106624", "#3cd650", "#a4ffa8", "#ffffff"] },
 };
 
 /** Passive effects. Each is a function of the hero stats object, applied at sortie. */
@@ -27,6 +28,8 @@ export const PASSIVES = {
   essence: { text: "던전 정수 획득 +25%", apply: (s) => { s.loot += 0.25; } },
   ultCharge: { text: "궁극기 재사용 대기시간 -25%", apply: (s) => { s.ultCdr += 0.25; } },
   affinity: { text: "상성 우위 피해 +20%", apply: (s) => { s.affinity += 0.2; } },
+  root: { text: "루트 권한: 공격 +200% · 체력 +200% · 재사용 대기 -50% · 치명 +50% · 받는 피해 -60% · 초당 3% 회복 · 이동 +30%",
+    apply: (s) => { s.atk *= 3; s.hp *= 3; s.cdr += 0.5; s.ultCdr += 0.5; s.crit += 0.5; s.critDmg += 1; s.armor += 0.6; s.regen += 0.03; s.speed *= 1.3; s.loot += 1; } },
 };
 
 export const SPIRITS = [
@@ -50,6 +53,8 @@ export const SPIRITS = [
   { id: "levia", el: "water", grade: 4, name: "심해의 레비아", passives: ["regen", "freezePlus"], tint: ["#04101e", "#082a3e", "#0c4e60", "#107e88", "#18b4b0", "#4ce8d8", "#b4fff0", "#ffffff"], crown: true },
   { id: "tempest", el: "wind", grade: 4, name: "폭풍왕 템페스트", passives: ["cd20", "chainPlus"], tint: ["#0e0a26", "#241452", "#3e2490", "#5c48d0", "#7c8cff", "#a4d0ff", "#e0f4ff", "#ffffff"], crown: true },
   { id: "gaia", el: "earth", grade: 4, name: "대지모 가이아", passives: ["hp30", "affinity"], tint: ["#0c1a0e", "#163418", "#2a5a24", "#4a8a30", "#8ab840", "#d8d060", "#fff0a0", "#ffffff"], crown: true },
+  // ★ developer — granted only to the "dev" account, never summoned
+  { id: "sudo", el: "code", grade: 5, name: "관리자 정령 SUDO", passives: ["root"], dev: true, crown: true, desc: "루트 권한을 가진 코드의 정령. 세상의 소스 코드를 읽고, 마음대로 고쳐 쓴다." },
 ];
 
 export const SPIRIT = Object.fromEntries(SPIRITS.map((s) => [s.id, s]));

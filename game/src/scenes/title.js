@@ -8,7 +8,11 @@ import { drawRig } from "../rig/rig.js";
 import { idlePose } from "../game/poses.js";
 import { el } from "../ui/dom.js";
 import { sfx, setMuted, isMuted } from "../core/audio.js";
-import { save, wipe } from "../core/save.js";
+import { save, wipe, load, useSlot } from "../core/save.js";
+import { auth } from "../core/auth.js";
+import { openSave } from "../core/session.js";
+import { SPIRIT } from "../data/spirits.js";
+import { toast } from "../ui/dom.js";
 
 function paintSky() {
   const buf = new Uint32Array(W * H);
@@ -61,8 +65,10 @@ export class TitleScene {
         <button class="btn primary start">${S.started ? "이어하기" : "새로 시작"}</button>
         <button class="btn opt">설정</button>
       </div>
-      <div class="ver dim">v0.1 · 픽셀 이펙트: pixelfx (MIT)</div>`);
+      <div class="ver dim">v0.1 · 픽셀 이펙트: pixelfx (MIT)</div>
+      <div class="acct"></div>`);
     ui.append(this.box);
+    this.renderAccount();
     const reveal = () => {
       if (this.revealed) return;
       this.revealed = true; sfx("ok");
@@ -75,9 +81,78 @@ export class TitleScene {
     this.box.querySelector(".opt").onclick = () => this.options();
   }
 
+  renderAccount() {
+    const box = this.box.querySelector(".acct"), A = auth.account;
+    box.innerHTML = A ? `<span class="who">${A.isDev ? '<b class="devtag">DEV</b> ' : ""}${A.id}</span><button class="btn sm out">로그아웃</button>` : `<button class="btn sm in">로그인 / 회원가입</button>`;
+    box.querySelector(".out")?.addEventListener("click", async () => {
+      await auth.logout();
+      const { save: s } = await openSave(null);
+      this.g.save = s; this.guest = false; this.renderAccount(); this.refreshStart(); toast("로그아웃했어요");
+    });
+    box.querySelector(".in")?.addEventListener("click", () => this.authPanel());
+  }
+  refreshStart() { const b = this.box.querySelector(".start"); if (b) b.textContent = this.g.save.started ? "이어하기" : "새로 시작"; }
+
   start() {
     sfx("ok");
+    if (!auth.loggedIn && !this.guest) return this.authPanel(true);
     import("../main.js").then(({ go }) => go(this.g.save.started ? "garden" : "select"));
+  }
+
+  /** Log in, sign up, or carry on as a guest. */
+  authPanel(fromStart = false) {
+    let mode = "login";
+    const ov = el("div", { class: "overlay auth" });
+    const render = (msg = "") => {
+      ov.innerHTML = `<div class="panel auth-box">
+        <div class="tabs"><button class="tab ${mode === "login" ? "on" : ""}" data-m="login">로그인</button><button class="tab ${mode === "signup" ? "on" : ""}" data-m="signup">회원가입</button></div>
+        <form class="col">
+          <input name="id" autocomplete="username" placeholder="아이디 (영문 소문자·숫자 3~16자)" maxlength="16" autocapitalize="off" spellcheck="false">
+          <input name="pw" type="password" autocomplete="${mode === "login" ? "current-password" : "new-password"}" placeholder="비밀번호 (6자 이상)" maxlength="64">
+          ${mode === "signup" ? '<input name="pw2" type="password" autocomplete="new-password" placeholder="비밀번호 확인" maxlength="64">' : ""}
+          <div class="err">${msg}</div>
+          <button class="btn primary go" type="submit">${mode === "login" ? "로그인" : "가입하고 시작"}</button>
+        </form>
+        <div class="small dim note">로그인하면 진행 상황이 서버에 저장돼서 다른 기기에서도 이어 할 수 있어요.${mode === "signup" && this.g.save.started && !auth.loggedIn ? "<br>지금 기기의 게스트 진행 상황이 새 계정으로 옮겨져요." : ""}</div>
+        <div class="row" style="justify-content:space-between">
+          ${fromStart ? '<button class="btn sm guest">게스트로 하기</button>' : "<span></span>"}
+          <button class="btn sm close">닫기</button>
+        </div></div>`;
+      ov.querySelectorAll(".tab").forEach((b) => (b.onclick = () => { mode = b.dataset.m; sfx("ui"); render(); }));
+      ov.querySelector(".close").onclick = () => ov.remove();
+      ov.querySelector(".guest")?.addEventListener("click", () => { this.guest = true; ov.remove(); this.start(); });
+      ov.querySelector("form").onsubmit = async (e) => {
+        e.preventDefault();
+        const f = new FormData(e.target), id = String(f.get("id") || "").trim().toLowerCase(), pw = String(f.get("pw") || "");
+        if (mode === "signup" && pw !== f.get("pw2")) return render("비밀번호 확인이 달라요.");
+        const btn = ov.querySelector(".go"); btn.disabled = true; btn.textContent = "잠시만요…";
+        try {
+          const guestSave = this.g.save;
+          const acc = mode === "login" ? await auth.login(id, pw) : await auth.signup(id, pw);
+          const { save: s, granted } = await openSave(acc, mode === "signup" ? guestSave : null);
+          this.g.save = s;
+          ov.remove(); sfx("level");
+          this.renderAccount(); this.refreshStart();
+          toast(`${acc.id}님, 환영해요!`);
+          if (granted) this.devGift(granted);
+          else if (fromStart) this.start();
+        } catch (err) { render(err.message); }
+      };
+      setTimeout(() => ov.querySelector("input[name=id]")?.focus(), 50);
+    };
+    render();
+    document.getElementById("ui").append(ov);
+  }
+
+  devGift(sp) {
+    const d = SPIRIT[sp.id];
+    const ov = el("div", { class: "overlay" }, `<div class="panel msg devgift"><div class="ov-title"><span class="dim">root 권한 확인</span>${d.name} 지급!</div>
+      <pre class="term">$ sudo grant --spirit ${sp.id}\n[sudo] dev 계정 인증 완료\n> ${d.name} Lv.${sp.lv} 각성 상태로 지급됨_</pre>
+      <div class="small">${d.desc}</div>
+      <div class="row" style="justify-content:center;margin-top:calc(var(--u)*6)"><button class="btn primary">시작하기</button></div></div>`);
+    ov.querySelector("button").onclick = () => { ov.remove(); this.guest = false; import("../main.js").then(({ go }) => go("garden")); };
+    document.getElementById("ui").append(ov);
+    sfx("legend");
   }
 
   options() {
@@ -87,14 +162,20 @@ export class TitleScene {
         <label class="row"><input type="checkbox" class="mute" ${S.settings.mute ? "checked" : ""}> 소리 끄기</label>
         <label class="row"><input type="checkbox" class="auto" ${S.settings.autoAttack ? "checked" : ""}> 평타 자동 사용</label>
         <label class="row">화면 흔들림 <input type="range" class="shake" min="0" max="1" step="0.25" value="${S.settings.shake}"></label>
+        ${auth.loggedIn ? '<button class="btn pwc">비밀번호 변경</button>' : ""}
         <button class="btn wipe">데이터 초기화</button>
         <button class="btn primary close">닫기</button>
       </div>`);
     ov.querySelector(".mute").onchange = (e) => { S.settings.mute = e.target.checked; setMuted(S.settings.mute); save(S); };
     ov.querySelector(".auto").onchange = (e) => { S.settings.autoAttack = e.target.checked; save(S); };
     ov.querySelector(".shake").oninput = (e) => { S.settings.shake = +e.target.value; window.SHAKE = S.settings.shake; save(S); };
-    ov.querySelector(".wipe").onclick = () => { if (confirm("정말 모든 진행 상황을 지울까요?")) { this.g.save = wipe(); location.reload(); } };
+    ov.querySelector(".wipe").onclick = async () => { if (confirm(auth.loggedIn ? "이 계정의 모든 진행 상황을 지울까요? 서버 저장도 지워져요." : "정말 모든 진행 상황을 지울까요?")) { const f = wipe(); if (auth.loggedIn) { save(f); await auth.flush(); } location.reload(); } };
     ov.querySelector(".close").onclick = () => ov.remove();
+    ov.querySelector(".pwc")?.addEventListener("click", async () => {
+      const old = prompt("지금 비밀번호"); if (!old) return;
+      const pw = prompt("새 비밀번호 (6자 이상)"); if (!pw) return;
+      try { await auth.changePassword(old, pw); toast("비밀번호를 바꿨어요"); } catch (e) { toast(e.message); }
+    });
     document.getElementById("ui").append(ov);
   }
 
@@ -102,7 +183,7 @@ export class TitleScene {
     this.t += dt;
     this.world.update(dt);
     const inp = this.g.input;
-    if (inp.take("confirm") || inp.take("attack")) { if (!this.revealed) this.reveal(); else this.start(); }
+    if (!document.querySelector("#ui .overlay") && (inp.take("confirm") || inp.take("attack"))) { if (!this.revealed) this.reveal(); else this.start(); }
     for (const L of this.logo.letters) {
       if (!this.landed.has(L.i) && this.logo.drop(L, this.t).landed) {
         this.landed.add(L.i);

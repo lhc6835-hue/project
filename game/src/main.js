@@ -5,7 +5,8 @@ import { Input } from "./core/input.js";
 import { unlockAudio } from "./core/audio.js";
 import { skillFxIds } from "./data/skills.js";
 import { DECOR_IDS } from "./game/room.js";
-import { load } from "./core/save.js";
+import { auth } from "./core/auth.js";
+import { openSave } from "./core/session.js";
 
 const COMMON_FX = [
   "critters/slime", "critters/bat", "critters/flying-skull", "critters/ghost", "critters/eyeball", "critters/wisp",
@@ -31,7 +32,8 @@ async function boot() {
   const canvas = document.getElementById("view");
   game.screen = new Screen(canvas);
   game.input = new Input();
-  game.save = load();
+  await auth.restore();
+  game.save = (await openSave(auth.account)).save;
   const ui = document.getElementById("ui");
   ui.innerHTML = `<div class="pass" style="position:absolute;inset:0;display:grid;place-items:center;color:#a59fc4">불러오는 중…</div>`;
   await Promise.all([loadFx([...skillFxIds(), ...COMMON_FX, ...DECOR_IDS]), document.fonts.load("8px Galmuri11"), document.fonts.load("bold 8px Galmuri11")]);

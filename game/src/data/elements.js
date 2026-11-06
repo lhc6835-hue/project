@@ -38,6 +38,12 @@ export const ELEMENTS = {
     ramp: PAL.holy, glow: ["#ffd84a", "#fffbe6"],
     body: ["#5a3e10", "#9a6c18", "#d8a428", "#ffd84a", "#fffbe6"],
   },
+  code: {
+    id: "code", name: "코드", css: "#3cd650", beats: null,
+    ramp: ["#020a04", "#05200c", "#0a3c16", "#106624", "#1a9a34", "#3cd650", "#a4ffa8", "#e8ffe8"],
+    glow: ["#3cd650", "#a4ffa8"],
+    body: ["#05200c", "#0a3c16", "#106624", "#3cd650", "#c8ffc8"],
+  },
   dark: {
     id: "dark", name: "어둠", css: "#a970e0", beats: "light",
     ramp: ["#050308", "#140c22", "#261540", "#3a1f62", "#58308c", "#8048b8", "#b884ff", "#f0dcff"],

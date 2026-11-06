@@ -8,6 +8,34 @@
 // st: statuses { burn, slow, freeze, stun, root } in seconds.
 
 export const SKILLS = {
+
+  // the developer's spirit: one god-tier kit at every stage
+  code: (() => {
+    const kit = {
+      basic: {
+        name: "Ctrl+X 잘라내기", desc: "주변의 모든 것을 글리치와 함께 잘라낸다.", pose: "spin", windup: 0.08, recover: 0.26,
+        fx: [{ t: 0, id: "melee/spin-slash", opts: { radius: 60 } }, { t: 0.04, id: "scifi/glitch", dur: 0.5 }],
+        hits: [{ t: 0.04, circ: [66, 0], dmg: 1.6, stop: 0.03 }, { t: 0.17, circ: [70, 0], dmg: 2.2, stop: 0.06, kb: 120, st: { stun: 0.3 } }],
+      },
+      skills: [{
+        name: "rm -rf /", desc: "레이저 격자로 앞을 지우고, 체력이 35% 아래인 적은 즉시 삭제한다.", pose: "point", windup: 0.15, recover: 0.3, cd: 5,
+        fx: [{ t: 0, id: "scifi/laser-grid", dx: 80, at: "aim", dur: 2.4 }, { t: 0, id: "scifi/scanner", dur: 0.9 }],
+        ticks: [{ t0: 0.1, t1: 2.4, every: 0.2, circ: [56, 80], at: "aim", dmg: 2.4, st: { slow: 1 } }],
+        special: { kind: "execute", t: 0.6, r: 140, below: 0.35 },
+      }, {
+        name: "Ctrl+Z 되돌리기", desc: "체력을 전부 되돌리고 3초간 무적, 스킬1을 바로 다시 쓸 수 있게 한다.", pose: "raise", windup: 0.1, recover: 0.3, cd: 9,
+        fx: [{ t: 0, id: "scifi/warp-in" }, { t: 0.1, id: "scifi/hologram", dur: 2.5, follow: true }],
+        special: { kind: "undo", t: 0.05 },
+      }],
+      ult: {
+        name: "sudo kill -9 *", desc: "시간을 멈추고, 화면 안의 모든 프로세스를 강제 종료한다.", pose: "ult", windup: 0.45, recover: 0.5, cd: 14,
+        fx: [{ t: -0.4, id: "arcane/time-stop" }],
+        special: { kind: "sudo", t: 0.1, freeze: 1.4, dmg: 45 },
+        cam: [{ t: -0.45, dim: 1.6 }],
+      },
+    };
+    return { 1: kit, 2: kit, 3: kit };
+  })(),
   fire: {
     1: {
       basic: {
@@ -244,6 +272,6 @@ export function skillFxIds() {
     if (m.special?.cloud) ids.add(m.special.cloud);
   };
   for (const el of Object.values(SKILLS)) for (const st of Object.values(el)) { walk(st.basic); st.skills.forEach(walk); walk(st.ult); }
-  ["lightning/zap-hit", "lightning/spark-arc", "impacts/hit-spark", "ice/ice-shatter"].forEach((i) => ids.add(i));
+  ["lightning/zap-hit", "lightning/spark-arc", "impacts/hit-spark", "ice/ice-shatter", "scifi/emp-blast", "scifi/glitch", "spawn/disintegrate"].forEach((i) => ids.add(i));
   return [...ids];
 }

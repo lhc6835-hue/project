@@ -20,7 +20,7 @@ export class RunScene {
     this.g = game; this.S = game.save;
     // test hook: ?scene=run&el=fire&stage=3
     if (args.el) {
-      const id = { fire: "sala", water: "undi", wind: "sylphi", earth: "nomi" }[args.el] ?? args.el;
+      const id = { fire: "sala", water: "undi", wind: "sylphi", earth: "nomi", code: "sudo" }[args.el] ?? args.el;
       this.spirit = { uid: -1, id, lv: +(args.lv ?? 20), stage: +(args.stage ?? 1) };
       this.sub = null;
     } else {
@@ -43,7 +43,7 @@ export class RunScene {
   makeThemes() {
     // floors cycle through elements, starting with the one our spirit beats (a gentle first floor)
     const order = [];
-    let e = ELEMENTS[SPIRIT[this.spirit.id].el].beats;
+    let e = ELEMENTS[SPIRIT[this.spirit.id].el].beats ?? "earth";
     for (let i = 0; i < 4; i++) { order.push(e); e = ELEMENTS[e].beats; }
     return Array.from({ length: FLOORS }, (_, i) => (i === 4 ? "earth" : i === 9 ? "fire" : order[i % 4]));
   }

@@ -1,6 +1,13 @@
 // Persistent progress in localStorage (with an in-memory fallback when storage is blocked).
-const KEY = "aether-heart-save-v1";
+// Each account keeps its own local copy; logged-in saves are also pushed to the server.
+import { auth } from "./auth.js";
+import { SPIRIT } from "../data/spirits.js";
+const BASE_KEY = "aether-heart-save-v1";
+let KEY = BASE_KEY;
 let mem = null;
+
+/** Switch which local slot we read/write: the guest slot, or one per account. */
+export function useSlot(accountId) { KEY = accountId ? BASE_KEY + ":" + accountId : BASE_KEY; mem = null; }
 
 export function fresh() {
   return {
@@ -29,6 +36,30 @@ export function save(s) {
   s.lastSeen = Date.now();
   mem = s;
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* keep going in memory */ }
+  auth.push(s);
+}
+
+/** Developer spirits belong to the dev account only: grant it there, strip it everywhere else. */
+export function applyAccount(s, account) {
+  const isDev = !!account?.isDev;
+  const devIds = Object.values(SPIRIT).filter((d) => d.dev).map((d) => d.id);
+  let granted = null;
+  if (isDev) {
+    for (const id of devIds) if (!s.spirits.some((x) => x.id === id)) {
+      const sp = { uid: s.uidN++, id, lv: 45, stage: 3, dupes: 3 };
+      s.spirits.push(sp); granted = sp;
+      if (!s.started) { s.started = true; s.active = sp.uid; }
+    }
+  } else {
+    const gone = s.spirits.filter((x) => devIds.includes(x.id)).map((x) => x.uid);
+    if (gone.length) {
+      s.spirits = s.spirits.filter((x) => !gone.includes(x.uid));
+      if (gone.includes(s.active)) s.active = s.spirits[0]?.uid ?? null;
+      if (gone.includes(s.sub)) s.sub = null;
+      if (!s.spirits.length) s.started = false;
+    }
+  }
+  return granted;
 }
 
 export function wipe() { try { localStorage.removeItem(KEY); } catch {} mem = null; return fresh(); }

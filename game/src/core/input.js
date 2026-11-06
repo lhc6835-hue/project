@@ -11,7 +11,9 @@ export class Input {
     this.stick = { x: 0, y: 0, id: null, cx: 0, cy: 0 };
     this.touch = matchMedia("(pointer: coarse)").matches;
     this.mouseAttack = false;
+    const typing = (e) => e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA");
     addEventListener("keydown", (e) => {
+      if (typing(e)) return;
       const a = KEYMAP[e.code];
       if (!a) return;
       if (!this.held.has(a)) this.pressed.add(a);

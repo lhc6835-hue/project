@@ -59,6 +59,14 @@ function shapes(el, stage, t, flip) {
       if (stage >= 3) for (const s of [-1, 1]) extra.push((u, v) => circle(u, v, s * r * 1.15, bob + r * 0.35 + S(t * 3 + s) * 1, r * 0.38)); // floating stones
       return { body, extra, r, eyes: [r * 0.28, bob + r * 0.05], bob };
     }
+    case "code": {
+      // a little floating monitor with an antenna; brackets orbit it as it grows
+      const box = (u, v, x, y, hw, hh, rr) => { const qx = Math.abs(u - x) - hw + rr, qy = Math.abs(v - y) - hh + rr; return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - rr; };
+      const body = (u, v) => Math.min(box(u, v, 0, bob, r * 1.05, r * 0.8, 1.5), box(u, v, 0, bob + r * 0.95, r * 0.35, r * 0.2, 0.5));
+      const extra = [(u, v) => Math.min(box(u, v, r * 0.4, bob - r * 1.15, 0.5, r * 0.35, 0), circle(u, v, r * 0.4, bob - r * 1.55, 1.2))];
+      if (stage >= 2) for (const s of [-1, 1]) extra.push((u, v) => { const x = s * r * (1.55 + 0.1 * S(t * 3)), y = bob; return Math.max(Math.abs(u - x) - 0.8, Math.abs(v - y) - r * 0.6) ; });
+      return { body, extra, r, eyes: [r * 0.3, bob], bob, code: true };
+    }
     default: {
       const body = (u, v) => circle(u, v, 0, bob, r);
       const extra = [];
@@ -107,10 +115,20 @@ export function drawSpirit(p, x, y, o) {
     const uu = u * f;
     const eyeW = stage >= 2 ? 1.6 : 1.2;
     const inEye = (cx) => Math.abs(uu - cx) < eyeW * 0.6 && v >= ey - (blink ? 0 : eyeW) && v < ey + 0.7;
-    if (m === 1 && (inEye(ex) || inEye(ex - r * 0.75))) c = hex("#120c16");
-    if (m === 1 && stage >= 2 && !blink && (Math.abs(uu - ex - 0.4) < 0.5 && Math.abs(v - (ey - eyeW + 0.4)) < 0.5)) c = hex("#ffffff");
+    if (sh.code && m === 1) {
+      const su = uu, sv = v - sh.bob, inScreen = Math.abs(su) < r * 0.82 && Math.abs(sv) < r * 0.58;
+      if (inScreen) {
+        c = R[1];
+        // ">" eye and a blinking "_" cursor eye, plus scanlines
+        const gx = su + r * 0.35, gy = sv + 0.2;
+        if (Math.abs(gy) <= 1.6 && Math.abs(gx - (1.6 - Math.abs(gy))) < 0.6) c = R[7];
+        if (Math.floor(t * 2.5) % 2 === 0 && Math.abs(sv - 1.3) < 0.55 && su > r * 0.15 && su < r * 0.6) c = R[7];
+        if (Math.floor(sv + 40) % 2 === 0 && c === R[1]) c = R[2];
+      }
+    } else if (m === 1 && (inEye(ex) || inEye(ex - r * 0.75))) c = hex("#120c16");
+    if (!sh.code && m === 1 && stage >= 2 && !blink && (Math.abs(uu - ex - 0.4) < 0.5 && Math.abs(v - (ey - eyeW + 0.4)) < 0.5)) c = hex("#ffffff");
     // cheeks
-    if (m === 1 && stage <= 2 && Math.abs(uu - ex - 1.6) < 0.8 && Math.abs(v - ey - 1.6) < 0.6) c = mix(c, hex("#ff8aa0"), 0.5);
+    if (!sh.code && m === 1 && stage <= 2 && Math.abs(uu - ex - 1.6) < 0.8 && Math.abs(v - ey - 1.6) < 0.6) c = mix(c, hex("#ff8aa0"), 0.5);
     p.put(X, Y, c, a);
     if (k >= 6) p.add(X, Y, R[6], 0.25 * glowK * a);
   }
@@ -128,6 +146,7 @@ export function drawSpirit(p, x, y, o) {
     if (el === "fire") { px = x + S(i * 2.3 + t * 2) * r * 0.8; py = y - r * 1.4 - ph * r * 2; }
     else if (el === "water") { px = x + S(i * 1.7) * r * 1.2; py = y + r - ph * r * 3; }
     else if (el === "wind") { const an = i / n * 6.28 + t * 3; px = x + C(an) * r * (1.6 + ph); py = y + S(an) * r * 0.7; }
+    else if (el === "code") { px = x + S(i * 2.1) * r * 1.6; py = y - r * 1.2 + ph * r * 2.6; p.text(i % 2 ? "1" : "0", Math.round(px), Math.round(py), R[ph < 0.5 ? 6 : 4], { font: "mini", align: "center", a: a * (1 - ph) }); continue; }
     else { px = x + S(i * 3.1) * r * 1.4; py = y + r * 1.1 - ph * r * 0.8; }
     p.put(Math.round(px), Math.round(py), R[ph < 0.5 ? 6 : 4], a * (1 - ph));
     p.add(Math.round(px), Math.round(py), R[5], 0.4 * a * (1 - ph));

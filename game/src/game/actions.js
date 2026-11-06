@@ -173,6 +173,37 @@ export class Action {
         };
         w.addRunner(step, s.life);
       }
+    } else if (s.kind === "execute") {
+      // rm -rf: anything weakened in range is simply deleted
+      for (const e of w.enemies) {
+        if (Math.hypot(e.x - o.x, (e.y - o.y) * DEPTH_K) > s.r) continue;
+        if (e.hp <= e.maxHp * (e.heavy ? 0.12 : s.below)) {
+          w.fx("spawn/disintegrate", { x: e.x, y: e.y + 0.5, ramp, light: 1 });
+          w.fx("scifi/glitch", { x: e.x, y: e.y + 0.5, ramp, light: 1, dur: 0.4 });
+          w.hit(o, e, { dmg: e.hp + 9999, noCrit: true, el: o.el, stage: this.stage, fxRamp: ramp, spark: false });
+        }
+      }
+      w.emit({ shake: 3 }); sfx("zap");
+    } else if (s.kind === "undo") {
+      // Ctrl+Z: roll the hero back to full
+      o.hp = o.maxHp; o.invuln = Math.max(o.invuln, 3); o.cd.s1 = 0;
+      for (const k in o.st) o.st[k] = 0;
+      o.clearStatusFx?.();
+      w.fx("ui/level-up", { x: o.x, y: o.y, light: 1, top: true, opts: { text: "UNDO!" } });
+      w.emit({ flash: 0.35 }); sfx("level");
+    } else if (s.kind === "sudo") {
+      // sudo kill -9: freeze every process on screen, then terminate them all
+      const targets = w.enemies.slice();
+      for (const e of targets) { e.applyStatus?.({ freeze: s.freeze }, null); w.fx("scifi/scanner", { x: e.x, y: e.y + 0.5, ramp, light: 1, dur: s.freeze }); }
+      w.emit({ flash: 0.5, shake: 3 }); sfx("summon");
+      w.after(s.freeze, () => {
+        for (const e of targets) {
+          if (e.dead) continue;
+          w.fx("scifi/emp-blast", { x: e.x, y: e.y + 0.5, ramp, light: 1.1 });
+          w.hit(o, e, { dmg: s.dmg * o.stats.atk, el: o.el, stage: this.stage, fxRamp: ramp, kb: 200, stop: 0.08 });
+        }
+        w.emit({ flash: 1, shake: 9, kill9: true }); sfx("boom");
+      });
     } else if (s.kind === "storm") {
       const A = w.arena, clouds = [];
       for (let i = 0; i < 3; i++) clouds.push(w.fx(s.cloud, { x: A.x0 + (A.x1 - A.x0) * (0.2 + i * 0.3), y: A.y0 - 4, ramp, light: light * 0.8, dur: s.life, bottom: true }));

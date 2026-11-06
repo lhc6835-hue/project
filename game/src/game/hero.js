@@ -213,8 +213,20 @@ export class Hero extends Actor {
       drawRig(p, { x: g.x, y: g.y, pose: g.pose, flip: g.flip, skin: this.skin, tint: this.glowC, tintK: 1, alpha: g.t / 0.22 * 0.7, eyes: false });
     const flicker = this.iframes > 0 && this.dashT <= 0 && Math.floor(this.t * 30) % 2 === 0;
     const flip = this.spinFlip ? !this.flip : this.flip;
+    // the developer's spirit: columns of code falling around the body
+    if (this.el === "code" && !this.dead) {
+      p.reset();
+      for (let i = 0; i < 6; i++) {
+        const col = Math.round(this.x + (i - 2.5) * 7), sp = 30 + (i * 13) % 20, ph = (this.t * sp + i * 17) % 50;
+        for (let k = 0; k < 4; k++) {
+          const yy = Math.round(this.y - this.z - 50 + ph - k * 6);
+          if (yy > this.y) continue;
+          p.text(((i * 7 + k + Math.floor(this.t * 8)) % 3) ? "1" : "0", col, yy, k === 0 ? this.accent[4] : this.accent[3 - Math.min(2, k)], { font: "mini", align: "center", a: 1 - k * 0.22 });
+        }
+      }
+    }
     // awakened aura: a soft light around the body and rising motes
-    if (this.stage >= 2 && !this.dead) {
+    if ((this.stage >= 2 || this.el === "code") && !this.dead) {
       const k = this.stage >= 3 ? 1 : 0.45;
       const cx = this.x, cy = this.y - this.z - 18;
       p.reset(); p.lightK = 1;
@@ -234,7 +246,7 @@ export class Hero extends Actor {
     drawRig(p, { x: this.x, y: this.y - this.z, pose, flip, skin: this.skin, decor: this.decor, tint: this.hitFlash > 0 ? hex("#ffffff") : null, alpha: flicker ? 0.45 : 1 });
     p.reset();
     this.trail.draw(p, this.ramps.main.map((c) => (typeof c === "number" ? c : hex(c))), this.glowC);
-    if (this.stage >= 3 && !this.dead) this.drawCrown(p, pose, flip);
+    if ((this.stage >= 3 || this.el === "code") && !this.dead) this.drawCrown(p, pose, flip);
   }
 
   /** Awakened spirits sit on the head as a crown of their element. */
@@ -249,6 +261,14 @@ export class Hero extends Actor {
       case "water": for (const [i, h] of [[-3, 2], [-1, 3], [1, 3], [3, 2], [0, 5]]) { for (let j = 0; j < h; j++) p.put(x + i, y - 1 - j, j === h - 1 ? A[4] : A[3]); p.add(x + i, y - h, g, 0.6); } break;
       case "wind": for (let a = 0; a < 14; a++) { const an = a / 14 * Math.PI * 2 + t * 4; p.put(Math.round(x + Math.cos(an) * 7), Math.round(y - 3 + Math.sin(an) * 2), a % 3 ? A[3] : A[4]); } p.add(x, y - 3, g, 0.4); break;
       case "earth": for (const s of [-1, 1]) { for (let j = 0; j < 5; j++) { p.put(x + s * (3 + (j >> 1)), y - 1 - j, j > 3 ? A[4] : A[3]); p.put(x + s * (4 + (j >> 1)), y - 1 - j, A[2]); } } break;
+      case "code": {
+        // a floating terminal prompt: </> with a blinking cursor
+        const c = Math.floor(t * 3) % 2 ? A[4] : A[3];
+        p.text("</>", x, y - 9, A[4], { font: "mini", align: "center", outline: hex("#020a04") });
+        if (Math.floor(t * 2) % 2) for (let i = 4; i <= 6; i++) p.put(x + i, y - 4, c);
+        for (let j = -8; j <= 8; j++) for (let i = -8; i <= 8; i++) { const d = i * i + j * j; if (d < 64) p.add(x + i, y - 7 + j, g, 0.06 * (1 - d / 64)); }
+        break;
+      }
       default: for (let i = -2; i <= 2; i++) p.put(x + i, y - 2, A[4]);
     }
     if (this.def.crown) for (let i = -1; i <= 1; i++) { p.put(x + i * 3, y - 8, hex("#ffd84a")); p.add(x + i * 3, y - 8, hex("#ffd84a"), 0.8); }
