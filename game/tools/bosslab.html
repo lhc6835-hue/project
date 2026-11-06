@@ -1,0 +1,37 @@
+<!doctype html><html><body style="margin:0;background:#000">
+<canvas id="c" style="image-rendering:pixelated"></canvas>
+<script type="module">
+// ?boss=golem|void&shots=idle:1,slam:0.7,...  each shot renders one cell; phase=2 option
+import { createFrame, clearFrame, composite, painterFor, hex, loadFx } from "../src/px.js";
+import { World } from "../src/game/world.js";
+import { StoneGiant, VoidCaller } from "../src/game/bosses.js";
+const q = new URLSearchParams(location.search);
+const kind = q.get("boss") ?? "golem", CW = 220, CH = 190, S = +(q.get("s") ?? 3);
+await loadFx(["impacts/ground-slam", "explosions/dirt-explosion", "impacts/blunt-hit", "nature/earth-spike", "explosions/big-explosion", "shadow/dark-explosion", "shadow/grasping-hands", "explosions/implosion", "lightning/zap-hit", "fire/fire-ring"]);
+const shots = (q.get("shots") ?? "idle:1").split(",");
+const cv = document.getElementById("c"); const cols = Math.min(4, shots.length), rows = Math.ceil(shots.length / cols);
+cv.width = CW * cols; cv.height = CH * rows; cv.style.width = cv.width * S + "px"; cv.style.height = cv.height * S + "px";
+const ctx = cv.getContext("2d");
+shots.forEach((sh, i) => {
+  const [state, tt, ph] = sh.split(":");
+  const w = new World({ x0: -500, x1: 500, y0: 0, y1: 300 });
+  const hero = { x: -80, y: 130, z: 0, r: 7, dead: false, iframes: 0, team: 0, height: 34, applyStatus() {}, heal() {} };
+  w.hero = hero;
+  const B = kind === "golem" ? StoneGiant : VoidCaller;
+  const b = new B({ x: 0, y: 130, hp: 1000, atk: 10 });
+  w.add(b); b.flip = true;
+  if (ph === "2") { b.phase = 2; b.eyeOpen = 1; b.wing = 1; }
+  const dt = 1 / 60, T = +tt;
+  if (state === "intro") { for (let k = 0; k < T * 60; k++) w.update(dt); }
+  else {
+    b.state = "idle"; b.introT = 99; b.invuln = 0; b.cool = 99;
+    for (let k = 0; k < 20; k++) w.update(dt);
+    if (state !== "idle") { b.cool = 99; b["atk" + state[0].toUpperCase() + state.slice(1)](); }
+    for (let k = 0; k < T * 60; k++) { b.cool = 99; w.update(dt); }
+  }
+  const f = createFrame(CW, CH, -CW / 2 - 20, 130 - CH + 12); clearFrame(f);
+  for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) f.color[y * CW + x] = y > CH - 28 ? hex("#2a2230") : hex("#17131f");
+  const p = painterFor(f); w.draw(p);
+  const img = new ImageData(CW, CH); composite(f, img.data, hex("#17131f")); ctx.putImageData(img, (i % cols) * CW, Math.floor(i / cols) * CH);
+});
+</script></body></html>

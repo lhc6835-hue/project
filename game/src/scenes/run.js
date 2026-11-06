@@ -95,14 +95,10 @@ export class RunScene {
     if (this.isBossFloor) {
       const B = this.floor === 5 ? StoneGiant : VoidCaller;
       const hpBase = this.floor === 5 ? 900 : 1700, atk = this.floor === 5 ? 16 : 18;
-      const b = new B({ x: A.x1 - 90, y: 200, hp: Math.round(hpBase * sc.hp), atk: atk * sc.dmg });
+      const b = new B({ x: A.x1 - 110, y: 214, hp: Math.round(hpBase * sc.hp), atk: atk * sc.dmg });
       b.maxHp = b.hp; b.minionScale = sc.hp; b.minionDmg = sc.dmg;
       w.add(b); this.boss = b;
-      this.bossBar(true);
-      sfx("door");
-      w.emit({ shake: 5 });
-      // a couple of minions with the giant
-      if (this.floor === 5) for (let i = 0; i < 2; i++) w.add(new Enemy("slime", { x: A.x1 - 40, y: A.y0 + 20 + i * 70, el: "earth", scale: sc.hp, dmgScale: sc.dmg }));
+      this.cinematic(b);
       return;
     }
     const pool = THEME_POOL[this.theme];
@@ -141,6 +137,8 @@ export class RunScene {
       if (ev.killed) this.onKill(ev.killed);
       if (ev.heroDied) this.onHeroDied();
       if (ev.bossDown) this.onBossDown(ev.bossDown);
+      if (ev.bossReady) this.endCinematic();
+      if (ev.bossDying) { this.slowT = ev.slowmo; this.letterbox(true); }
     }
     w.events.length = 0;
   }
@@ -187,7 +185,7 @@ export class RunScene {
     this.t += dt;
     const h = this.hero, w = this.world;
     // input → hero
-    if (this.state === "fight" || this.state === "clear") {
+    if ((this.state === "fight" || this.state === "clear") && !this.inCinema) {
       h.input = inp.move;
       if (inp.take("dash")) { h.tryDash([h.input.x, h.input.y]); if (this.mods.dashBuff) this.dashBuff(); }
       for (const s of ["s1", "s2", "ult"]) if (inp.take(s)) h.tryAct(s);
@@ -197,7 +195,9 @@ export class RunScene {
     } else h.input = { x: 0, y: 0 };
     // ultimate dims the world for a moment
     if (this.dimT > 0) { this.dimT -= dt; this.g.screen.dim = Math.min(1, this.dimT * 3); } else this.g.screen.dim = Math.max(0, this.g.screen.dim - dt * 4);
-    w.update(dt);
+    let wdt = dt;
+    if (this.slowT > 0) { this.slowT -= dt; wdt = dt * 0.35; if (this.slowT <= 0) this.letterbox(false); }
+    w.update(wdt);
     this.handleEvents();
     this.updateOrbs(dt);
     // waves
@@ -261,7 +261,7 @@ export class RunScene {
         <div class="hud-floor"><b class="fl"></b><span class="dim wv"></span></div>
         <div class="hud-loot"><span class="ess"></span><span class="gem"></span></div>
       </div>
-      <div class="bossbar" hidden><div class="bname"></div><div class="bar"><i></i></div></div>
+      <div class="bossbar" hidden><div class="bname"></div><div class="bframe"><div class="bar"><b class="lag"></b><i></i><em class="notch"></em></div></div></div>
       <div class="skills"></div>
       <div class="banner"></div>`);
     ui.append(this.hud);
@@ -303,14 +303,42 @@ export class RunScene {
     }
     const db = document.getElementById("b-dash"); if (db) db.querySelector(".cd").style.setProperty("--cd", clamp(h.cd.dash / 0.9) + "turn");
     if (this.boss) {
-      q(".bossbar i").style.width = (clamp(this.boss.hp / this.boss.maxHp) * 100).toFixed(1) + "%";
+      const k = clamp(this.boss.hp / this.boss.maxHp);
+      this.bossLag = Math.max(k, (this.bossLag ?? 1) - 0.004);
+      q(".bossbar i").style.width = (k * 100).toFixed(1) + "%";
+      q(".bossbar .lag").style.width = (this.bossLag * 100).toFixed(1) + "%";
+      q(".bossbar").classList.toggle("p2", this.boss.phase === 2);
     }
+  }
+
+  cinematic(b) {
+    this.inCinema = true;
+    this.letterbox(true);
+    sfx("door");
+    const E = b.el === "dark" ? "#c684ff" : "#e8b05a";
+    const card = el("div", { class: "titlecard pass" }, `<span class="tc-sub">${b.title}</span><b class="tc-name" style="--c:${E}">${b.name}</b><i class="tc-line" style="--c:${E}"></i>`);
+    setTimeout(() => this.hud?.querySelector(".banner")?.after(card), 900);
+    setTimeout(() => card.remove(), 3400);
+    this.world.after(0.2, () => this.world.emit({ shake: 4 }));
+    this.world.after(1.9, () => { this.world.emit({ shake: 8 }); sfx("boom"); });
+  }
+
+  endCinematic() {
+    this.inCinema = false;
+    this.letterbox(false);
+    this.bossBar(true);
+  }
+
+  letterbox(on) {
+    let lb = document.querySelector("#ui .letterbox");
+    if (!lb) { lb = el("div", { class: "letterbox pass" }, "<i></i><i></i>"); document.getElementById("ui").append(lb); }
+    requestAnimationFrame(() => lb.classList.toggle("on", on));
   }
 
   bossBar(on) {
     const b = this.hud.querySelector(".bossbar");
     b.hidden = !on;
-    if (on) b.querySelector(".bname").textContent = this.boss.name;
+    if (on) b.querySelector(".bname").innerHTML = `<small>${this.boss.title}</small>${this.boss.name}`;
   }
 
   banner(text, color = "#f1ecff", small = false) {

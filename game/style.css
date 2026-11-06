@@ -223,3 +223,27 @@ body.touch .skills { display: none; }
 #rotate div { font-size: 14vw; animation: rot 2s infinite; }
 @keyframes rot { 50% { transform: rotate(90deg); } }
 @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
+
+/* ---------- boss presentation ---------- */
+.letterbox i { position: absolute; left: 0; right: 0; height: calc(var(--u) * 26); background: #000; transition: transform .6s cubic-bezier(.2,.8,.2,1); z-index: 3; }
+.letterbox i:first-child { top: 0; transform: translateY(-100%); }
+.letterbox i:last-child { bottom: 0; transform: translateY(100%); }
+.letterbox.on i { transform: none; }
+.titlecard { position: absolute; left: 0; right: 0; top: calc(var(--u) * 150); display: flex; flex-direction: column; align-items: center; z-index: 4; animation: tc 2.5s forwards; }
+.tc-sub { font-size: calc(var(--u) * 8); color: #c8c0ff; letter-spacing: .5em; text-shadow: 0 var(--u) 0 #000; }
+.tc-name { font-size: calc(var(--u) * 22); font-weight: 700; color: #fff; letter-spacing: .12em; text-shadow: 0 0 calc(var(--u) * 8) var(--c), calc(var(--u) * 2) calc(var(--u) * 2) 0 #000; }
+.tc-line { display: block; height: var(--u); width: calc(var(--u) * 260); background: linear-gradient(90deg, transparent, var(--c), #fff, var(--c), transparent); margin-top: calc(var(--u) * 3); animation: tcl .8s backwards .2s; }
+@keyframes tc { 0% { opacity: 0; transform: scale(1.4); filter: blur(4px); } 12% { opacity: 1; transform: scale(1); filter: none; } 85% { opacity: 1; } 100% { opacity: 0; transform: translateY(-6px); } }
+@keyframes tcl { from { transform: scaleX(0); } }
+.bossbar { width: calc(var(--u) * 260); top: calc(var(--u) * 22); }
+.bossbar .bname { font-size: calc(var(--u) * 9); font-weight: 700; color: #fff; text-shadow: 0 0 calc(var(--u) * 4) #ffb84a, 0 var(--u) 0 #000; }
+.bossbar .bname small { display: block; font-size: calc(var(--u) * 5.5); color: #c8c0ff; letter-spacing: .3em; font-weight: 400; }
+.bframe { padding: var(--u); background: linear-gradient(#6a4a10, #2a1a06); border: var(--u) solid #ffd84a; box-shadow: 0 0 0 var(--u) #000, 0 0 calc(var(--u) * 6) #ffb84a60; position: relative; }
+.bframe::before, .bframe::after { content: ""; position: absolute; top: 50%; width: calc(var(--u) * 6); height: calc(var(--u) * 6); background: #ffd84a; transform: translateY(-50%) rotate(45deg); box-shadow: 0 0 0 var(--u) #000; }
+.bframe::before { left: calc(var(--u) * -4); } .bframe::after { right: calc(var(--u) * -4); }
+.bossbar .bar { height: calc(var(--u) * 6); border: 0; background: #1a0a10; }
+.bossbar .bar i { background: linear-gradient(#ff8a6a, #e8303a 50%, #8a1020); z-index: 2; }
+.bossbar .bar .lag { position: absolute; inset: 0; right: auto; background: #ffe0a0; z-index: 1; }
+.bossbar .bar .notch { position: absolute; left: 50%; top: 0; bottom: 0; width: var(--u); background: #ffd84a; z-index: 3; }
+.bossbar.p2 .bframe { border-color: #ff6a2a; box-shadow: 0 0 0 var(--u) #000, 0 0 calc(var(--u) * 8) #ff6a2a; animation: p2 1s infinite; }
+@keyframes p2 { 50% { box-shadow: 0 0 0 var(--u) #000, 0 0 calc(var(--u) * 14) #ff6a2a; } }
