@@ -438,7 +438,7 @@ export class RunScene {
   }
 
   transition(fn) {
-    this.fade = 1; this.fadeFn = fn;
+    this.g.screen.wipe(fn, { soft: !!this.S.settings.lessFlash });
   }
 
   togglePause() {

@@ -48,6 +48,43 @@ export class Screen {
     p.ox = 0; p.oy = 0;
     return p;
   }
+  /**
+   * Scene change: a rift of diamonds closes over the screen from the edges in, fn runs while it is shut,
+   * then it opens again from the middle out. Each diamond's rim glows gold to violet.
+   */
+  wipe(fn, o = {}) {
+    if (this.tr && this.tr.phase === "in") { this.tr.fn = fn; return; }
+    this.tr = { phase: "in", t: 0, fn, dur: o.dur ?? 0.36, soft: !!o.soft };
+    const ui = document.getElementById("ui"); ui.style.transition = "opacity 180ms ease-out"; ui.style.opacity = "0";
+  }
+  drawWipe(d, dt) {
+    const T = this.tr; if (!T) return;
+    T.t += dt;
+    let p = Math.min(1, T.t / T.dur);
+    if (T.phase === "in" && p >= 1) {
+      const fn = T.fn; T.phase = "out"; T.t = 0; p = 0;
+      try { fn?.(); } catch (e) { console.error(e); }
+      const ui = document.getElementById("ui"); ui.style.transition = "opacity 260ms ease-out 120ms"; ui.style.opacity = "1";
+    }
+    if (T.phase === "out" && p >= 1) { this.tr = null; return; }
+    const w = this.img.width, h = this.img.height, CELL = 12, half = CELL / 2, ease = (x) => x * x * (3 - 2 * x);
+    const cover = T.phase === "in" ? ease(p) : 1 - ease(p);
+    const maxD = Math.hypot(w / 2, h / 2), glow = T.soft ? 0 : 1;
+    for (let cy = 0; cy < h; cy += CELL) for (let cx = 0; cx < w; cx += CELL) {
+      // closing: edges first; opening: the middle first
+      const dn = Math.hypot(cx + half - w / 2, cy + half - h / 2) / maxD, lag = T.phase === "in" ? 1 - dn : dn;
+      const R = (cover * 1.7 - lag * 0.7) * (CELL + 1);
+      if (R <= 0) continue;
+      const gr = 255, gg = Math.round(216 - dn * 120), gb = Math.round(74 + dn * 180);   // gold at the middle → violet at the rim
+      for (let y = cy; y < Math.min(h, cy + CELL); y++) for (let x = cx; x < Math.min(w, cx + CELL); x++) {
+        const m = Math.abs(x - cx - half + 0.5) + Math.abs(y - cy - half + 0.5);
+        if (m >= R) continue;
+        const i = (y * w + x) * 4;
+        if (glow && m > R - 1.6 && R < CELL) { d[i] = gr; d[i + 1] = gg; d[i + 2] = gb; }
+        else { d[i] = 11; d[i + 1] = 10; d[i + 2] = 16; }
+      }
+    }
+  }
   present(dt) {
     composite(this.frame, this.img.data, this.bg);
     const d = this.img.data;
@@ -70,6 +107,7 @@ export class Screen {
       for (let i = 0; i < d.length; i += 4) { d[i] += (r - d[i]) * k; d[i + 1] += (g - d[i + 1]) * k; d[i + 2] += (b - d[i + 2]) * k; }
       this.flash = Math.max(0, this.flash - dt * 6);
     }
+    this.drawWipe(d, dt);
     this.ctx.putImageData(this.img, 0, 0);
   }
 }

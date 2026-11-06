@@ -22,7 +22,9 @@ const COMMON_FX = [
 
 export const game = { screen: null, input: null, scene: null, save: null, scenes: {} };
 
-export function go(name, args) {
+export function go(name, args, o = {}) {
+  // every scene change after the first goes through the rift wipe
+  if (game.scene && !o.instant) { game.screen.wipe(() => go(name, args, { instant: true }), { soft: !!game.save?.settings?.lessFlash }); return; }
   const S = game.scenes[name];
   game.scene?.exit?.();
   document.getElementById("ui").innerHTML = "";
