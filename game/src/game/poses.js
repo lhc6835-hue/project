@@ -347,15 +347,16 @@ export function archetype(name, W = 0.2, R = 0.3) {
       [0.34, { turn: 0.85, aN: 1.0, aF: 0.8, lean: 0.3, crouch: 5, lN: 0.7, lF: -0.6, x: 4, sy: 0.88, sx: 1.1 }, "in"],
       [r(1), { ...STANCE }, "io"],
     ];
-    // ---- earth: a stone jab, then the far fist driven up from the floor
+    // ---- earth: one heavy, grounded punch. Feet set wide and never leave the floor; the stone fist is drawn
+    // back to the hip while the weight sinks onto the back leg, then the whole body drives it straight out
+    // and holds there, like a rock that has landed.
     case "onetwo": return [
       [w(1), { ...STANCE }],
-      [w(0.5), { turn: 0.9, aN: 0.9, aF: 1.0, lean: 0.12, crouch: 3, lN: 0.45, lF: -0.45, sy: 0.93, sx: 1.04 }, "out"],
-      [0, { turn: 0.95, aN: 1.65, aF: 0.8, lean: 0.34, lN: 0.62, lF: -0.5, x: 4, sx: 1.1, sy: 0.95, crouch: 1.5 }, "snap"],
-      [0.06, { turn: 0.85, aN: 1.0, aF: -0.6, lean: 0.38, lN: 0.66, lF: -0.55, crouch: 5, x: 5, sy: 0.88, sx: 1.08 }, "out"],
-      [0.14, { turn: 0.6, aN: 0.6, aF: 2.95, lean: -0.18, z: 5, plant: false, lN: 0.4, lF: -0.6, x: 8, sy: 1.08, sx: 0.94, head: -0.25 }, "snap"],
-      [0.22, { turn: 0.6, aN: 0.6, aF: 3.15, lean: -0.24, z: 6, plant: false, lN: 0.35, lF: -0.6, x: 9, head: -0.3 }, "back"],
-      [r(0.75), { turn: 0.8, aN: 1.2, aF: 1.2, lean: 0.15, crouch: 2.5, lN: 0.45, lF: -0.4, x: 7, sy: 0.94 }, "in"],
+      [w(0.7), { turn: 1, aN: 0.25, eN: 0.62, aF: 1.45, eF: 0.9, lean: -0.05, crouch: 3.5, lN: 0.62, lF: -0.6, x: -2, sx: 1.02, sy: 0.97, head: 0.05 }, "out"],
+      [w(0.15), { turn: 1, aN: -0.2, eN: 0.58, aF: 1.5, eF: 0.92, lean: -0.1, crouch: 4.2, lN: 0.64, lF: -0.62, x: -2.6, sx: 1.03, sy: 0.96, head: 0.06 }, "io"],
+      [0, { turn: 1, aN: 1.58, eN: 1.12, aF: 0.35, eF: 0.66, lean: 0.24, crouch: 3, lN: 0.72, lF: -0.7, x: 4, sx: 1.08, sy: 0.95, head: 0.02 }, "snap"],
+      [0.06, { turn: 1, aN: 1.56, eN: 1.14, aF: 0.3, eF: 0.64, lean: 0.26, crouch: 3.4, lN: 0.72, lF: -0.7, x: 4.6, sx: 1.04, sy: 0.96 }, "out"],
+      [0.3, { turn: 1, aN: 1.52, eN: 1.1, aF: 0.35, eF: 0.66, lean: 0.24, crouch: 3.6, lN: 0.72, lF: -0.7, x: 4.8 }, "out"],
       [r(1), { ...STANCE }, "io"],
     ];
     case "point": return [

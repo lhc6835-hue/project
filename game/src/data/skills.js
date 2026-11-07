@@ -319,10 +319,9 @@ export const SKILLS = {
   earth: {
     1: {
       basic: {
-        name: "바위 주먹", desc: "돌 건틀릿으로 잽을 넣고, 반대 주먹을 땅에서부터 끌어올려 올려친다.", pose: "onetwo", windup: 0.1, recover: 0.4,
-        fx: [{ t: 0.14, id: "melee/uppercut" }, { t: 0.15, id: "impacts/blunt-hit", dx: 28, dy: -8, dur: 0.5 }],
-        hits: [{ t: 0.0, box: [0, 38, 16], dmg: 0.45, stop: 0.04, kb: 20 }, { t: 0.14, box: [0, 44, 18], dmg: 1.05, stop: 0.11, kb: 110, up: 70 }],
-        cam: [{ t: 0.14, shake: 2.2 }],
+        name: "바위 주먹", desc: "두 발을 단단히 딛고 돌 건틀릿을 허리까지 당겼다가, 온몸의 무게를 실어 곧게 내지른다.", pose: "onetwo", windup: 0.22, recover: 0.44,
+        hits: [{ t: 0.0, box: [0, 40, 18], dmg: 1.25, stop: 0.13, kb: 130 }],
+        cam: [{ t: 0, shake: 2.4 }],
       },
       skills: [{
         name: "돌 던지기", desc: "커다란 돌을 던져 떨어진 곳을 부순다.", pose: "throw", windup: 0.22, recover: 0.3, cd: 4,

@@ -20,7 +20,7 @@ export const WEAPON_BY_MOVE = {
   // water
   "물의 활": { kind: "bow", len: 15, tier: 1 }, "쌍류 화살": { kind: "bow", len: 18, tier: 2 }, "격류의 화살": { kind: "bow", len: 23, tier: 3, big: true }, "얼음창": { kind: "spear", len: 24, ramp: "ice" },
   // earth: stone gauntlets, then a hammer that keeps getting bigger
-  "바위 주먹": { kind: "gauntlet", both: true }, "돌 던지기": { kind: "rock" }, "대지 망치": { kind: "hammer", len: 10, swing: "hammer", two: true, heavy: true }, "거암 강타": { kind: "hammer", len: 12, big: true, swing: "leapslam", two: true, heavy: true },
+  "바위 주먹": { kind: "gauntlet", both: true, punches: [[0, "armN", 1.8]] }, "돌 던지기": { kind: "rock" }, "대지 망치": { kind: "hammer", len: 10, swing: "hammer", two: true, heavy: true }, "거암 강타": { kind: "hammer", len: 12, big: true, swing: "leapslam", two: true, heavy: true },
   // light: a lance of light
   "빛의 창격": { kind: "lance", len: 24, tier: 1, swing: "pierce", two: true }, "성광 연창": { kind: "lance", len: 27, tier: 2, swing: "pierce3", two: true }, "천상의 창": { kind: "lance", len: 31, tier: 3, swing: "skydrive", two: true },
   // dark: a reaper's blade, from a sickle to a great scythe
@@ -292,7 +292,7 @@ export function drawWeapon(p, hero, pose, W, k, t) {
       case "gauntlet": {
         // the fist cased in a block of stone, bright cracks across the knuckles
         const stone = (hero.ramps.stone ?? hero.ramps.main).map((c) => (typeof c === "number" ? c : hex(c)));
-        const s2 = 3.4 * grow;
+        const s2 = (W.punches ? 4.4 : 3.4) * grow;
         for (let j = -s2; j <= s2; j++) for (let i = -s2; i <= s2; i++) {
           if (Math.abs(i) + Math.abs(j) > s2 * 1.6) continue;
           const x = h.x + perp[0] * i + dir[0] * j, y = h.y + perp[1] * i + dir[1] * j;
@@ -300,6 +300,12 @@ export function drawWeapon(p, hero, pose, W, k, t) {
           p.put(Math.round(x), Math.round(y), edge ? stone[1] : j > s2 * 0.4 ? stone[5] : stone[3], aa);
         }
         stroke(p, h.x + dir[0] * s2 * 0.6 - perp[0] * s2 * 0.7, h.y + dir[1] * s2 * 0.6 - perp[1] * s2 * 0.7, h.x + dir[0] * s2 * 0.6 + perp[0] * s2 * 0.7, h.y + dir[1] * s2 * 0.6 + perp[1] * s2 * 0.7, 0.35, [hero.accent[4]], aa, glow, 0.3);
+        // the punch landing: a shock ring off the stone knuckles, in the element's colour
+        const at2 = hero.act?.t;
+        if (at2 !== undefined) for (const [pt, pa, sz] of W.punches ?? []) {
+          const u = (at2 - pt) / 0.16;
+          if (pa === arm && u >= 0 && u <= 1) punchImpact(p, h.x + dir[0] * (s2 + 1), h.y + dir[1] * (s2 + 1), [flip ? -1 : 1, 0], hero.accent.map((c) => (typeof c === "number" ? c : hex(c))), glow, a, u, sz);
+        }
         break;
       }
       case "rock": {
