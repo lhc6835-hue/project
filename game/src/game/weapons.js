@@ -12,7 +12,7 @@ export const WEAPON_BY_MOVE = {
   // fire
   "불꽃 할퀴기": { kind: "claws", len: 6, both: true }, "불씨탄": { kind: "orb", r: 3 }, "화염 회전베기": { kind: "blade", len: 19, flame: true, swing: "spin" }, "업화 강타": { kind: "greatsword", len: 27, flame: true, swing: "overhead", two: true },
   // water
-  "물의 활": { kind: "bow", len: 15 }, "쌍류 화살": { kind: "bow", len: 17 }, "격류의 화살": { kind: "bow", len: 20, big: true }, "얼음창": { kind: "spear", len: 24, ramp: "ice" },
+  "물의 활": { kind: "bow", len: 15, tier: 1 }, "쌍류 화살": { kind: "bow", len: 18, tier: 2 }, "격류의 화살": { kind: "bow", len: 23, tier: 3, big: true }, "얼음창": { kind: "spear", len: 24, ramp: "ice" },
   // earth
   "바위 주먹": { kind: "gauntlet" }, "돌 던지기": { kind: "rock" }, "대지 망치": { kind: "hammer", len: 20, swing: "overhead", two: true }, "지진 내려찍기": { kind: "gauntlet", both: true },
   // light
@@ -99,21 +99,42 @@ export function drawWeapon(p, hero, pose, W, k, t) {
       }
       case "bow": {
         if (arm !== "armN") break;
-        // a bow of running water held out front; the string runs to the drawing hand, an arrow nocked on it
-        const H2 = H.armF, half = len * 0.5, bend = len * 0.3, at = hero.act?.t ?? 1, drawn = at < 0 && at > -(hero.act?.def?.windup ?? 0.2) * 0.6;
-        const pt = (s) => [h.x + perp[0] * s * half + dir[0] * (1 - s * s) * bend * (drawn ? 0.75 : 1), h.y + perp[1] * s * half + dir[1] * (1 - s * s) * bend * (drawn ? 0.75 : 1)];
-        let prev = pt(-1);
-        for (let i = 1; i <= 12; i++) { const s = -1 + (i / 12) * 2, q = pt(s); stroke(p, prev[0], prev[1], q[0], q[1], (u) => 1.1 - Math.abs(s) * 0.5, bright, aa, glow, 0.22); prev = q; }
-        const top = pt(-1), bot = pt(1), nock = drawn ? [H2.x, H2.y] : [h.x - dir[0] * 1.5, h.y - dir[1] * 1.5];
-        stroke(p, top[0], top[1], nock[0], nock[1], 0.35, [R[n - 1]], aa * 0.9);
-        stroke(p, bot[0], bot[1], nock[0], nock[1], 0.35, [R[n - 1]], aa * 0.9);
+        // the bow grows with the spirit: a plain water bow, then a recurve with streaming ribbons (수류궁),
+        // then a great crescent bow with fins, a gem at the grip and a string of light (해신궁)
+        const tier = W.tier ?? 1, H2 = H.armF, at = hero.act?.t ?? 1, def = hero.act?.def;
+        const two = def?.name === "쌍류 화살", wind = def?.windup ?? 0.25;
+        const behind = (H2.x - h.x) * dir[0] + (H2.y - h.y) * dir[1] < -2;
+        const drawn = behind && ((at < 0 && at > -wind * 0.8) || (two && at > 0.05 && at < 0.11));
+        const half = len * 0.5, bend = len * (tier === 3 ? 0.24 : 0.3) * (drawn ? 0.7 : 1);
+        const pt = (s, inset = 0) => { const rc = tier === 2 ? Math.pow(Math.abs(s), 5) * len * 0.2 : tier === 3 ? Math.pow(Math.abs(s), 4) * len * 0.12 : 0;
+          return [h.x + perp[0] * s * half + dir[0] * ((1 - s * s) * bend + rc - inset), h.y + perp[1] * s * half + dir[1] * ((1 - s * s) * bend + rc - inset)]; };
+        const limb = (inset, wdt, cols, gk) => { let prev = pt(-1, inset); for (let i = 1; i <= 14; i++) { const s = -1 + (i / 14) * 2, q = pt(s, inset); stroke(p, prev[0], prev[1], q[0], q[1], () => wdt * (1.15 - Math.abs(s) * 0.5), cols, aa, glow, gk); prev = q; } };
+        limb(0, tier === 1 ? 0.9 : tier === 2 ? 1.2 : 1.5, bright, 0.22 + tier * 0.06);
+        if (tier === 3) limb(1.6, 0.5, [R[n - 1]], 0.3);
+        // the string: pulled to the drawing hand, or trembling for a moment after a release
+        const rel = two && at > 0.11 ? at - 0.11 : at, buzz = !drawn && rel > 0 && rel < 0.25 ? Math.sin(rel * 90) * (1 - rel / 0.25) * 2 : 0;
+        const top = pt(-1), bot = pt(1), nock = drawn ? [H2.x, H2.y] : [h.x - dir[0] * (1.5 + buzz), h.y - dir[1] * (1.5 + buzz)];
+        const sc = tier === 3 ? [hex("#ffffff")] : [R[n - 1]];
+        stroke(p, top[0], top[1], nock[0], nock[1], tier === 3 ? 0.5 : 0.35, sc, aa * 0.9, tier === 3 ? glow : null, 0.25);
+        stroke(p, bot[0], bot[1], nock[0], nock[1], tier === 3 ? 0.5 : 0.35, sc, aa * 0.9, tier === 3 ? glow : null, 0.25);
         if (drawn) {
-          const tipA = [h.x + dir[0] * (W.big ? 9 : 6), h.y + dir[1] * (W.big ? 9 : 6)];
-          stroke(p, nock[0], nock[1], tipA[0], tipA[1], W.big ? 0.9 : 0.6, bright, aa, glow, 0.35);
-          for (let j = -6; j <= 6; j++) for (let i = -6; i <= 6; i++) { const d = i * i + j * j; if (d < 36) p.add(Math.round(tipA[0] + i), Math.round(tipA[1] + j), glow, 0.18 * aa * (1 - d / 36)); }
+          const tipA = [h.x + dir[0] * (4 + tier * 2.5), h.y + dir[1] * (4 + tier * 2.5)];
+          stroke(p, nock[0], nock[1], tipA[0], tipA[1], 0.5 + tier * 0.2, bright, aa, glow, 0.35);
+          const gr = 4 + tier * 2; for (let j = -gr; j <= gr; j++) for (let i = -gr; i <= gr; i++) { const d = i * i + j * j; if (d < gr * gr) p.add(Math.round(tipA[0] + i), Math.round(tipA[1] + j), glow, (0.12 + tier * 0.05) * aa * (1 - d / (gr * gr))); }
         }
-        // droplets dripping off the limbs
-        for (let i = 0; i < 2; i++) { const ph = (t * 1.3 + i * 0.5) % 1, q = pt(i ? 0.8 : -0.8); p.put(Math.round(q[0]), Math.round(q[1] + ph * 6), R[n - 2], aa * (1 - ph)); }
+        if (tier >= 2) for (const sgn of [-1, 1]) {
+          // ribbons of water streaming off the limb tips
+          const q = pt(sgn);
+          for (let k2 = 1; k2 <= 8; k2++) { const x2 = q[0] - dir[0] * k2 * 0.9 + perp[0] * Math.sin(t * 9 + k2 * 0.8 + sgn) * 1.2 + perp[0] * sgn * k2 * 0.2, y2 = q[1] - dir[1] * k2 * 0.9 + Math.sin(t * 9 + k2 * 0.8 + sgn) * 1.2 + k2 * 0.35; p.blendPx(Math.round(x2), Math.round(y2), R[n - 2], aa * 0.7 * (1 - k2 / 9)); }
+        }
+        if (tier === 3) {
+          for (const sgn of [-1, 1]) { const m = pt(sgn * 0.55), fx = m[0] + dir[0] * 3 + perp[0] * sgn * 1.5, fy = m[1] + dir[1] * 3 + perp[1] * sgn * 1.5; stroke(p, m[0], m[1], fx, fy, 0.6, bright, aa, glow, 0.3); const tq = pt(sgn); stroke(p, tq[0], tq[1], tq[0] + perp[0] * sgn * 2.5, tq[1] + perp[1] * sgn * 2.5, 0.5, [R[n - 1]], aa); }
+          const gx = h.x + dir[0] * bend * 0.9, gy = h.y + dir[1] * bend * 0.9;
+          for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) p.put(Math.round(gx + i), Math.round(gy + j), i === 0 && j === 0 ? hex("#ffffff") : R[n - 2], aa);
+          for (let j = -7; j <= 7; j++) for (let i = -7; i <= 7; i++) { const d = i * i + j * j; if (d < 49) p.add(Math.round(gx + i), Math.round(gy + j), glow, 0.2 * aa * (1 - d / 49)); }
+          for (let i = 0; i < 3; i++) { const an = t * 3 + i * 2.1; p.put(Math.round(gx + Math.cos(an) * 6), Math.round(gy + Math.sin(an) * 3.5), R[n - 1], aa); }
+        }
+        for (let i = 0; i < tier; i++) { const ph = (t * 1.3 + i * 0.37) % 1, q = pt(i % 2 ? 0.8 : -0.8); p.put(Math.round(q[0]), Math.round(q[1] + ph * 6), R[n - 2], aa * (1 - ph)); }
         break;
       }
       case "spear": {

@@ -299,6 +299,8 @@ export class Projectile {
     }
     for (let s = 0; s <= L; s++) { const X = Math.round(x - dx * s), Y = Math.round(y - dy * s), c = s < 3 ? R[n - 1] : R[n - 2]; p.put(X, Y, c); if (this.big) p.put(X + Math.round(px), Y + Math.round(py), R[n - 3]); p.add(X, Y, R[n - 2], 0.25); }
     for (const side of [-1, 1]) for (let s = 1; s <= 3; s++) p.put(Math.round(x - dx * s + px * side * s * 0.8), Math.round(y - dy * s + py * side * s * 0.8), R[n - 1]);
+    // the great arrow is wound with a spiral of water
+    if (this.tier === 3) for (let s = 0; s <= L + 6; s++) { const q = Math.sin(s * 0.9 - this.t * 30) * 2.6; p.put(Math.round(x - dx * s + px * q), Math.round(y - dy * s + py * q), R[n - 1], 0.9 - s / (L + 8)); }
     for (let s = 0; s < 3; s++) { const q = Math.sin(this.t * 40 + s * 2); p.put(Math.round(x - dx * (L + 2 + s * 3) + px * q * 2), Math.round(y - dy * (L + 2 + s * 3) + py * q * 2), R[n - 3], 0.8); }
     for (let j = -5; j <= 5; j++) for (let i = -5; i <= 5; i++) { const d = i * i + j * j; if (d < 25) p.add(Math.round(x + i), Math.round(y + j), R[n - 2], 0.15 * (1 - d / 25)); }
   }

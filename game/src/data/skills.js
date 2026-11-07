@@ -204,8 +204,8 @@ export const SKILLS = {
   water: {
     1: {
       basic: {
-        name: "물의 활", desc: "물로 빚은 활을 당겨 물살 화살을 쏜다. 맞은 적은 느려진다.", pose: "bow", windup: 0.18, recover: 0.24,
-        proj: [{ t: 0, style: "waterArrow", speed: 340, range: 200, r: 6, dmg: 1.0, z: 18, hitFx: "water/splash", kb: 50, st: { slow: 1 } }],
+        name: "물의 활", desc: "물로 빚은 활을 당겨 물살 화살을 쏜다. 맞은 적은 느려진다.", pose: "bow", windup: 0.26, recover: 0.3,
+        proj: [{ t: 0, style: "waterArrow", tier: 1, speed: 340, range: 200, r: 6, dmg: 1.0, z: 18, hitFx: "water/splash", kb: 50, st: { slow: 1 } }],
       },
             skills: [{
         name: "물보라", desc: "발밑에서 물을 터뜨려 주변 적을 밀쳐내고 느리게 한다.", pose: "stomp", windup: 0.18, recover: 0.3, cd: 4,
@@ -215,9 +215,9 @@ export const SKILLS = {
     },
     2: {
       basic: {
-        name: "쌍류 화살", desc: "두 발의 물살 화살을 연달아 쏜다. 화살은 적을 꿰뚫는다.", pose: "bow", windup: 0.16, recover: 0.3,
-        proj: [{ t: 0, style: "waterArrow", speed: 380, range: 230, r: 6, dmg: 0.68, z: 18, pierce: true, hitFx: "water/splash", kb: 40, st: { slow: 1.5 } },
-          { t: 0.11, style: "waterArrow", speed: 380, range: 230, r: 6, dmg: 0.68, z: 18, pierce: true, hitFx: "water/splash", kb: 40, st: { slow: 1.5 } }],
+        name: "쌍류 화살", desc: "수류궁으로 물살 화살 두 발을 연달아 쏜다. 화살은 적을 꿰뚫는다.", pose: "bow2", windup: 0.22, recover: 0.36,
+        proj: [{ t: 0, style: "waterArrow", tier: 2, speed: 380, range: 230, r: 6, dmg: 0.68, z: 18, pierce: true, hitFx: "water/splash", kb: 40, st: { slow: 1.5 } },
+          { t: 0.11, style: "waterArrow", tier: 2, speed: 380, range: 230, r: 6, dmg: 0.68, z: 18, pierce: true, hitFx: "water/splash", kb: 40, st: { slow: 1.5 } }],
       },
             skills: [{
         name: "물줄기", desc: "앞쪽으로 꿰뚫는 물줄기를 쏜다.", pose: "channel", windup: 0.15, recover: 1.0, cd: 6, root: 1.0,
@@ -231,10 +231,10 @@ export const SKILLS = {
     },
     3: {
       basic: {
-        name: "격류의 화살", desc: "물살을 휘감은 큰 화살과 곁화살 두 발. 큰 화살은 꿰뚫고, 맞는 곳마다 물보라가 터진다.", pose: "bow", windup: 0.24, recover: 0.32,
-        proj: [{ t: 0, style: "waterArrow", big: true, speed: 400, range: 260, r: 8, dmg: 1.45, z: 18, pierce: true, hitFx: "water/splash", hitR: 22, hitDmg: 0.45, burst: false, kb: 90, st: { slow: 2 } },
-          { t: 0.02, style: "waterArrow", speed: 360, range: 200, r: 5, dmg: 0.5, z: 18, spread: -0.14, hitFx: "impacts/hit-spark", st: { slow: 1 } },
-          { t: 0.02, style: "waterArrow", speed: 360, range: 200, r: 5, dmg: 0.5, z: 18, spread: 0.14, hitFx: "impacts/hit-spark", st: { slow: 1 } }],
+        name: "격류의 화살", desc: "해신궁을 끝까지 당겨 물살을 휘감은 큰 화살과 곁화살 두 발을 쏜다. 큰 화살은 꿰뚫고, 맞는 곳마다 물보라가 터진다.", pose: "bow3", windup: 0.36, recover: 0.4,
+        proj: [{ t: 0, style: "waterArrow", tier: 3, big: true, speed: 400, range: 260, r: 8, dmg: 1.45, z: 18, pierce: true, hitFx: "water/splash", hitR: 22, hitDmg: 0.45, burst: false, kb: 90, st: { slow: 2 } },
+          { t: 0.02, style: "waterArrow", tier: 3, speed: 360, range: 200, r: 5, dmg: 0.5, z: 18, spread: -0.14, hitFx: "impacts/hit-spark", st: { slow: 1 } },
+          { t: 0.02, style: "waterArrow", tier: 3, speed: 360, range: 200, r: 5, dmg: 0.5, z: 18, spread: 0.14, hitFx: "impacts/hit-spark", st: { slow: 1 } }],
         cam: [{ t: 0, shake: 2 }],
       },
             skills: [{

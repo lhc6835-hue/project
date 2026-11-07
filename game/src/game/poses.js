@@ -242,13 +242,32 @@ export function archetype(name, W = 0.2, R = 0.3) {
       [0.12, { aN: 2.85, aF: 2.7, lean: -0.14, z: 3, plant: false, lN: 0.25, lF: -0.3, head: -0.25, sy: 1.04 }, "back"],
       [r(1), { aN: 2.6, aF: 2.45, lean: -0.1, z: 2, plant: false, lN: 0.25, lF: -0.25, head: -0.2 }, "io"],
     ];
-    case "bow": return [
-      // nock and draw: the bow arm reaches forward, the string hand pulls back to the cheek, release snaps
-      [w(1), { ...STANCE }],
-      [w(0.55), { aN: 1.55, aF: 1.45, lean: 0.05, lN: 0.42, lF: -0.42, head: 0.05 }, "out"],
-      [w(0.05), { aN: 1.6, aF: -0.35, lean: -0.12, lN: 0.48, lF: -0.5, x: -2, head: 0.1, sx: 0.97, sy: 1.02 }, "io"],
-      [0, { aN: 1.62, aF: 1.15, lean: -0.2, lN: 0.5, lF: -0.5, x: -3, sx: 1.03, sy: 0.98 }, "snap"],
-      [0.1, { aN: 1.5, aF: 0.7, lean: -0.08, lN: 0.46, lF: -0.46, x: -2 }, "back"],
+    // Archery, after the coaching shot cycle: turn side-on, raise and extend the bow arm, draw the string
+    // straight back to an anchor by the face, a held beat to aim, release by relaxing the fingers (the
+    // string hand flies back past the ear on its own), and a follow-through that keeps the bow arm up.
+    case "bow": case "bow3": {
+      const heavy = name === "bow3", k = heavy ? 1.15 : 1;
+      return [
+        [w(1), { ...STANCE, turn: 0.9 }],
+        [w(0.78), { turn: 1, aN: 1.45, aF: 1.35, lean: 0.02, lN: 0.5, lF: -0.5, head: 0.02, sy: 1.01 }, "out"],                 // raise & nock
+        [w(0.2), { turn: 1, aN: 1.58, aF: -1.55 * k, lean: -0.1 * k, lN: 0.55, lF: -0.55, x: -1, head: 0.08, sx: 0.98, sy: 1.02 }, "io"], // draw to anchor
+        [w(0.02), { turn: 1, aN: 1.6, aF: -1.62 * k, lean: -0.12 * k, lN: 0.55, lF: -0.55, x: -1.5, head: 0.1, sx: 0.98, sy: 1.02 }, "io"], // aim
+        [0, { turn: 1, aN: 1.62, aF: -2.25, lean: -0.18 * k, lN: 0.56, lF: -0.56, x: -2.5 * k, head: 0.06, sx: 1.02, sy: 0.99 }, "snap"], // release
+        [0.12, { turn: 1, aN: 1.58, aF: -2.15, lean: -0.1, lN: 0.55, lF: -0.55, x: -2, head: 0.04 }, "back"],                       // follow-through
+        [r(0.65), { turn: 0.95, aN: 1.3, aF: -0.6, lean: 0.02, lN: 0.48, lF: -0.48, x: -1 }, "io"],
+        [r(1), { ...STANCE }, "io"],
+      ];
+    }
+    case "bow2": return [
+      // two arrows: a quick first draw, release, and the hand snaps back to the string for a second shot
+      [w(1), { ...STANCE, turn: 0.9 }],
+      [w(0.7), { turn: 1, aN: 1.45, aF: 1.35, lN: 0.5, lF: -0.5, head: 0.02 }, "out"],
+      [w(0.05), { turn: 1, aN: 1.58, aF: -1.5, lean: -0.1, lN: 0.55, lF: -0.55, x: -1, head: 0.08, sx: 0.98, sy: 1.02 }, "io"],
+      [0, { turn: 1, aN: 1.62, aF: -2.1, lean: -0.16, lN: 0.56, lF: -0.56, x: -2, head: 0.06, sx: 1.02 }, "snap"],
+      [0.045, { turn: 1, aN: 1.6, aF: 1.25, lean: -0.05, lN: 0.55, lF: -0.55, x: -1.5 }, "out"],                   // back to the string
+      [0.1, { turn: 1, aN: 1.6, aF: -1.55, lean: -0.12, lN: 0.55, lF: -0.55, x: -1.5, head: 0.08 }, "io"],          // second draw
+      [0.11, { turn: 1, aN: 1.62, aF: -2.25, lean: -0.18, lN: 0.56, lF: -0.56, x: -3, sx: 1.03 }, "snap"],         // second release
+      [0.22, { turn: 1, aN: 1.58, aF: -2.15, lean: -0.1, lN: 0.55, lF: -0.55, x: -2 }, "back"],
       [r(1), { ...STANCE }, "io"],
     ];
     case "point": return [
