@@ -57,6 +57,7 @@ export class Action {
       if (this.swung && e.id.startsWith("melee/")) return; // the blade's own swept arc replaces the stock slash
       const base = { ramp: this.rampOf(e.ramp ?? "main"), light: this.light(e.light), opts: e.opts, dur: e.dur };
       if (e.follow) w.fx(e.id, { ...base, follow: o, dx: e.dx ?? 0, dy: e.dy ?? 0 });
+      else if (e.at === "weapon" && o.weaponTip) w.fx(e.id, { ...base, x: o.weaponTip[0] + f * (e.dx ?? 0), y: o.weaponTip[1], flip: o.flip }); // where the weapon met the ground
       else if (e.at === "aim") w.fx(e.id, { ...base, x: this.aim[0], y: this.aim[1], flip: o.flip });
       else if (e.at === "nearest") { const tg = this.target; if (tg && !tg.dead) w.fx(e.id, { ...base, x: tg.x, y: tg.y, flip: o.flip }); }
       else w.fx(e.id, { ...base, x: o.x + f * (e.dx ?? 0), y: o.y, z: (e.dy ?? 0) < 0 ? o.z - e.dy : 0, flip: o.flip });

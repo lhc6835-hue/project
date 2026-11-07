@@ -252,8 +252,16 @@ export function drawWeapon(p, hero, pose, W, k, t) {
         // a band binding it to the haft and a vein of the element glowing across it. No growth scaling: the
         // size is set per move, so the hammer stays compact against the body.
         const stone = (hero.ramps.stone ?? hero.ramps.main).map((c) => (typeof c === "number" ? c : hex(c)));
-        const L = W.len ?? 11, hd = [h.x + dir[0] * L, h.y + dir[1] * L];
-        const hw = W.big ? 8.5 : 6.5, hl = W.big ? 6.5 : 5;
+        const L = W.len ?? 11, hw = W.big ? 8.5 : 6.5, hl = W.big ? 6.5 : 5;
+        // the head can't go through the floor: lift the swing toward level until it rests on the ground
+        const floor = hero.y + 1, fw = flip ? -1 : 1;
+        const bottom = () => h.y + dir[1] * (L + hl * 0.55) + Math.abs(perp[1]) * hw + Math.abs(dir[1]) * hl;
+        for (let k = 0; k < 24 && dir[1] > 0 && bottom() > floor; k++) {
+          const c = Math.cos(0.06), sn = Math.sin(0.06) * -fw, d0 = dir[0], d1 = dir[1];
+          dir[0] = d0 * c - d1 * sn; dir[1] = d0 * sn + d1 * c; perp[0] = -dir[1]; perp[1] = dir[0];
+        }
+        const hd = [h.x + dir[0] * L, h.y + dir[1] * L];
+        hero.weaponTip = [hd[0] + dir[0] * hl * 0.55, hero.y];
         stroke(p, h.x - dir[0] * 3, h.y - dir[1] * 3, hd[0], hd[1], 1.5, stone.slice(1, 5), aa);
         for (let q = -2; q <= 2; q++) p.put(Math.round(h.x - dir[0] * 3.5 + perp[0] * q * 0.6), Math.round(h.y - dir[1] * 3.5 + perp[1] * q * 0.6), stone[1], aa); // pommel
         const c0 = [hd[0] + dir[0] * hl * 0.55, hd[1] + dir[1] * hl * 0.55];
