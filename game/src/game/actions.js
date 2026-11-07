@@ -47,7 +47,10 @@ export class Action {
     this.t += dt;
     const t = this.t, f = o.flip ? -1 : 1;
     const due = (key, at) => at <= t && !this.fired.has(key) && (this.fired.add(key), true);
-    if (!this.released && t >= 0) { this.released = true; sfx(SWING_SFX[o.el] ?? "swing"); o.onRelease?.(this); }
+    // a bow's release sounds like a bow (each arrow plays its own shot below), not a splash
+    const bowShot = d.proj?.some((q) => q.style === "waterArrow");
+    if (!this.started && bowShot) { this.started = true; sfx("draw"); }
+    if (!this.released && t >= 0) { this.released = true; if (!bowShot) sfx(SWING_SFX[o.el] ?? "swing"); o.onRelease?.(this); }
 
     (d.fx ?? []).forEach((e, i) => {
       if (!due("fx" + i, e.t)) return;
@@ -81,6 +84,7 @@ export class Action {
       pr.fxRef = p.fx && w.fx(p.fx, { ramp, light: this.light(), opts: p.opts, x: pr.x, y: pr.y, z: pr.z, flip: o.flip, angle: Math.atan2(pr.vy, Math.abs(pr.vx)) * f * (o.flip ? -1 : 1) });
       if (pr.fxRef) pr.fxRef.sortY = undefined;
       w.projs.push(pr);
+      if (p.style === "waterArrow") { sfx("bow", { power: p.big ? 1.4 : p.tier === 2 ? 1.1 : 1 }); if (p.big || !p.spread) sfx("water", { rate: 1.6, vol: 0.35 }); }
     });
 
     if (d.dash && t >= d.dash.t0 && prev < d.dash.t1) {

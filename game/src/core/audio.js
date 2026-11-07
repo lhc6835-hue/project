@@ -73,14 +73,14 @@ function loadBuf(path) {
   return (buffers[path] = fetch(BASE + path).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject())).then((a) => new Promise((ok, no) => ctx.decodeAudioData(a, ok, no))).then((b) => (buffers[path] = b)).catch(() => (buffers[path] = false)));
 }
 function preloadSamples() { for (const [files] of Object.values(SAMPLES)) for (const f of files) loadBuf("sfx/" + f + ".mp3"); }
-function playSample(name, rate = 1) {
+function playSample(name, rate = 1, vk = 1) {
   const S = SAMPLES[name]; if (!S) return false;
   const [files, vol, jit] = S, b = buffers["sfx/" + files[Math.floor(Math.random() * files.length)] + ".mp3"];
   if (!(b instanceof AudioBuffer)) return false;
   if ((voices[name] ?? 0) >= VOICE_CAP) return true;   // already loud enough: drop it
   const src = ctx.createBufferSource(), g = ctx.createGain();
   src.buffer = b; src.playbackRate.value = rate * (1 + (Math.random() * 2 - 1) * jit);
-  g.gain.value = vol * Math.pow(10, ((Math.random() * 2 - 1) * VOL_JITTER_DB) / 20);
+  g.gain.value = vk * vol * Math.pow(10, ((Math.random() * 2 - 1) * VOL_JITTER_DB) / 20);
   src.connect(g).connect(sfxBus); src.start();
   voices[name] = (voices[name] ?? 0) + 1; src.onended = () => { voices[name]--; };
   if (DUCK[name]) duck(...DUCK[name]);
@@ -135,7 +135,26 @@ function burst(dur, f, q = 1, vol = 0.5, type = "lowpass", delay = 0) {
   s.connect(fl).connect(g).connect(synthBus); s.start(t0);
 }
 
+/** Band-passed noise whose centre slides from f0 to f1: a whoosh. */
+function sweep(dur, f0, f1, q = 1.2, vol = 0.3, delay = 0) {
+  const t0 = ctx.currentTime + delay, s = noise(dur), fl = ctx.createBiquadFilter(), g = ctx.createGain();
+  fl.type = "bandpass"; fl.Q.value = q; fl.frequency.setValueAtTime(f0, t0); fl.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + dur * 0.25); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  s.connect(fl).connect(g).connect(synthBus); s.start(t0);
+}
+
 const SOUNDS = {
+  // the bow: a sharp click as the string leaves the fingers, the string's twang ringing down, the arrow tearing away
+  bow: (o) => {
+    const k = o?.power ?? 1, p = 1 + (Math.random() - 0.5) * 0.08;
+    burst(0.018, 4500, 0.8, 0.5 * k, "highpass");
+    tone("triangle", 230 * p, 150 * p, 0.2, 0.32 * k); tone("square", 460 * p, 300 * p, 0.09, 0.06 * k);
+    tone("sine", 120, 55, 0.12, 0.35 * k);                       // the thump of the limbs snapping forward
+    sweep(0.24 + 0.06 * k, 2800, 900, 1.4, 0.24 * k, 0.012);
+  },
+  // an arrow driving into something: a dull knock with a crack on top
+  thunk: () => { tone("sine", 170, 60, 0.09, 0.42); burst(0.04, 2400, 1.2, 0.35, "bandpass"); burst(0.06, 600, 1, 0.25); },
+  draw: () => { tone("sawtooth", 70, 95, 0.22, 0.05); burst(0.22, 1600, 6, 0.08, "bandpass"); },
   hit: () => { burst(0.08, 1800, 1, 0.35, "bandpass"); tone("square", 220, 90, 0.07, 0.12); },
   crit: () => { burst(0.12, 2600, 1, 0.45, "bandpass"); tone("square", 520, 160, 0.12, 0.18); },
   hurt: () => { tone("sawtooth", 180, 60, 0.18, 0.3); burst(0.1, 800, 1, 0.3); },
@@ -160,5 +179,5 @@ export function sfx(name, o) {
   const now = performance.now();
   if (last[name] && now - last[name] < 45) return; // don't stack the same sound in one frame
   last[name] = now;
-  try { const ok = playSample(name, o?.rate ?? 1); if (!ok || LAYER[name]) SOUNDS[name]?.(); } catch { /* audio is best effort */ }
+  try { const ok = playSample(name, o?.rate ?? 1, o?.vol ?? 1); if (!ok || LAYER[name]) SOUNDS[name]?.(o); } catch { /* audio is best effort */ }
 }

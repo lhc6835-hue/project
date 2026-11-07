@@ -262,6 +262,7 @@ export class Projectile {
       if (this.hitSet.has(e)) continue;
       if (Math.hypot(e.x - this.x, (e.y - this.y) * DEPTH_K) <= this.r + e.r && Math.abs((e.height ?? 30) * 0.5 - this.z) < 30) {
         this.hitSet.add(e);
+        if (this.style === "waterArrow") sfx("thunk");
         const dk = this.boomerang ? [1, this.hangK ?? 0.35, this.backK ?? 0.7][this.phase] : 1;
         w.hit(this.src, e, { dmg: this.dmg * dk * (this.src.stats?.atk ?? 1), el: this.el, kb: (this.kb ?? 60) * (this.phase === 1 ? 0.2 : 1), st: this.st, stage: this.stage, fxRamp: this.ramp, from: [this.x - this.vx * 0.1, this.y] });
         if (!this.pierce) return this.end(w, true);
