@@ -20,7 +20,7 @@ export const WEAPON_BY_MOVE = {
   // water
   "물의 활": { kind: "bow", len: 15, tier: 1 }, "쌍류 화살": { kind: "bow", len: 18, tier: 2 }, "격류의 화살": { kind: "bow", len: 23, tier: 3, big: true }, "얼음창": { kind: "spear", len: 24, ramp: "ice" },
   // earth: stone gauntlets, then a hammer that keeps getting bigger
-  "바위 주먹": { kind: "gauntlet", both: true }, "돌 던지기": { kind: "rock" }, "대지 망치": { kind: "hammer", len: 20, swing: "hammer", two: true }, "거암 강타": { kind: "hammer", len: 25, big: true, swing: "leapslam", two: true },
+  "바위 주먹": { kind: "gauntlet", both: true }, "돌 던지기": { kind: "rock" }, "대지 망치": { kind: "hammer", len: 10, swing: "hammer", two: true, heavy: true }, "거암 강타": { kind: "hammer", len: 12, big: true, swing: "leapslam", two: true, heavy: true },
   // light: a lance of light
   "빛의 창격": { kind: "lance", len: 24, tier: 1, swing: "pierce", two: true }, "성광 연창": { kind: "lance", len: 27, tier: 2, swing: "pierce3", two: true }, "천상의 창": { kind: "lance", len: 31, tier: 3, swing: "skydrive", two: true },
   // dark: a reaper's blade, from a sickle to a great scythe
@@ -248,22 +248,31 @@ export function drawWeapon(p, hero, pose, W, k, t) {
         break;
       }
       case "hammer": {
-        // a stone shaft and a heavy head across its end
+        // a short, thick haft and a head that is mostly mass: a big block of stone, darker underneath, with
+        // a band binding it to the haft and a vein of the element glowing across it. No growth scaling: the
+        // size is set per move, so the hammer stays compact against the body.
         const stone = (hero.ramps.stone ?? hero.ramps.main).map((c) => (typeof c === "number" ? c : hex(c)));
-        stroke(p, h.x - dir[0] * 3, h.y - dir[1] * 3, tip[0], tip[1], 1.1, stone.slice(2, 6), aa);
-        const hg = 1 + (st - 1) * 0.08, hw = (W.big ? 7.5 : 6) * hg, hl = (W.big ? 5 : 4) * hg;
-        for (let j = -hl; j <= hl; j++) for (let i = -hw; i <= hw; i++) {
-          const x = tip[0] + perp[0] * i + dir[0] * j, y = tip[1] + perp[1] * i + dir[1] * j;
-          if (Math.abs(i) > hw - 1.2 && Math.abs(j) > hl - 1.2) continue;
-          const edge = Math.abs(i) > hw - 1 || Math.abs(j) > hl - 1;
-          p.put(Math.round(x), Math.round(y), edge ? stone[1] : (i + j < 0 ? stone[5] : stone[3]), aa);
+        const L = W.len ?? 11, hd = [h.x + dir[0] * L, h.y + dir[1] * L];
+        const hw = W.big ? 8.5 : 6.5, hl = W.big ? 6.5 : 5;
+        stroke(p, h.x - dir[0] * 3, h.y - dir[1] * 3, hd[0], hd[1], 1.5, stone.slice(1, 5), aa);
+        for (let q = -2; q <= 2; q++) p.put(Math.round(h.x - dir[0] * 3.5 + perp[0] * q * 0.6), Math.round(h.y - dir[1] * 3.5 + perp[1] * q * 0.6), stone[1], aa); // pommel
+        const c0 = [hd[0] + dir[0] * hl * 0.55, hd[1] + dir[1] * hl * 0.55];
+        for (let j = -hl; j <= hl; j += 0.5) for (let i = -hw; i <= hw; i += 0.5) {
+          const ai = Math.abs(i), aj = Math.abs(j);
+          if (ai > hw - 1.5 && aj > hl - 1.5) continue;                          // chamfered corners
+          const x = c0[0] + perp[0] * i + dir[0] * j, y = c0[1] + perp[1] * i + dir[1] * j;
+          const edge = ai > hw - 0.8 || aj > hl - 0.8, face = ai > hw - 2.2;     // the striking faces at both ends
+          const lit = y < c0[1] - hl * 0.2;
+          p.put(Math.round(x), Math.round(y), edge ? stone[0] : face ? (lit ? stone[5] : stone[3]) : lit ? stone[4] : y > c0[1] + hl * 0.3 ? stone[2] : stone[3], aa);
         }
-        stroke(p, tip[0] - perp[0] * hw, tip[1] - perp[1] * hw, tip[0] + perp[0] * hw, tip[1] + perp[1] * hw, 0.4, [hero.accent[4]], aa, glow, 0.25);
+        // the band where head meets haft, and the glowing vein
+        stroke(p, hd[0] - perp[0] * 2.2, hd[1] - perp[1] * 2.2, hd[0] + perp[0] * 2.2, hd[1] + perp[1] * 2.2, 0.8, [stone[1], stone[2]], aa);
+        stroke(p, c0[0] - perp[0] * (hw - 2.5), c0[1] - perp[1] * (hw - 2.5), c0[0] + perp[0] * (hw - 2.5), c0[1] + perp[1] * (hw - 2.5), 0.35, [hero.accent[4]], aa, glow, 0.28);
         if (W.big) for (const sg of [-1, 1]) {
-          // crystal spikes jutting from both faces, glowing veins of the element
-          const bx = tip[0] + perp[0] * sg * hw, by = tip[1] + perp[1] * sg * hw;
-          stroke(p, bx, by, bx + perp[0] * sg * 4 + dir[0] * 2, by + perp[1] * sg * 4 + dir[1] * 2, (u) => 1.6 * (1 - u), [hero.accent[2], hero.accent[3], hero.accent[4]], aa, glow, 0.3);
-          stroke(p, tip[0] + perp[0] * sg * 3 - dir[0] * hl * 0.6, tip[1] + perp[1] * sg * 3 - dir[1] * hl * 0.6, tip[0] + perp[0] * sg * 3 + dir[0] * hl * 0.6, tip[1] + perp[1] * sg * 3 + dir[1] * hl * 0.6, 0.35, [hero.accent[4]], aa, glow, 0.3);
+          // stage 3: crystal studs on the striking faces and a second vein
+          const fx = c0[0] + perp[0] * sg * (hw + 0.5), fy = c0[1] + perp[1] * sg * (hw + 0.5);
+          for (const o of [-2.5, 0, 2.5]) stroke(p, fx + dir[0] * o, fy + dir[1] * o, fx + dir[0] * o + perp[0] * sg * 2.2, fy + dir[1] * o + perp[1] * sg * 2.2, (u) => 1.1 * (1 - u), [hero.accent[3], hero.accent[4]], aa, glow, 0.3);
+          stroke(p, c0[0] + dir[0] * 2.5 - perp[0] * (hw - 3), c0[1] + dir[1] * 2.5 - perp[1] * (hw - 3), c0[0] + dir[0] * 2.5 + perp[0] * (hw - 3), c0[1] + dir[1] * 2.5 + perp[1] * (hw - 3), 0.3, [hero.accent[4]], aa, glow, 0.25);
         }
         break;
       }
@@ -422,23 +431,25 @@ function swingKeys(kind, W, R) {
       [r(1), S2({ th: 0.15, psi: 0.1, arm: 0.9, fa: 0 }), "io"],
     ];
     // ---- the hammer
-    case "hammer": return [ // dragged low behind, heaved up over the head with a hop, brought down and left in the ground
+    case "hammer": return [ // dragged low behind, heaved up and hung over the head, dropped dead, left in the ground, heaved out
       [w(1), S2({ th: 0.4, psi: 0.15 })],
-      [w(0.62), S2({ th: 0.9, psi: -2.4, turn: 1, lean: 0.22, crouch: 4, x: -1, lN: 0.45, lF: -0.5, sy: 0.9, sx: 1.05 }), "out"],
-      [w(0.15), S2({ th: -2.25, psi: -0.45, turn: 0.95, lean: -0.34, x: -1, z: 5, lN: 0.55, lF: -0.15, sy: 1.1, sx: 0.93, head: -0.3 }), "out"],
-      [0, S2({ th: -0.5, psi: 0.1, turn: 0.75, lean: 0.4, x: 3, z: 3, lN: 0.7, lF: -0.5, sx: 1.06 }), "in"],
-      [0.06, S2({ th: 1.15, psi: 0.3, turn: 0.6, lean: 0.6, x: 5, crouch: 6, lN: 0.85, lF: -0.7, sx: 1.14, sy: 0.86 }), "lin"],
-      [0.22, S2({ th: 1.3, psi: 0.35, turn: 0.6, lean: 0.55, x: 5, crouch: 5, lN: 0.85, lF: -0.7, sy: 0.9 }), "out"],
-      [r(1), S2({ th: 0.5, psi: 0.2 }), "io"],
+      [w(0.78), S2({ th: 0.95, psi: -2.4, turn: 1, lean: 0.24, crouch: 4.5, x: -1, lN: 0.45, lF: -0.5, sy: 0.9, sx: 1.06 }), "out"],
+      [w(0.42), S2({ th: -2.25, psi: -0.45, turn: 0.95, lean: -0.32, x: -1.5, z: 3, lN: 0.5, lF: -0.2, sy: 1.08, sx: 0.94, head: -0.3 }), "out"],
+      [w(0.06), S2({ th: -2.45, psi: -0.5, turn: 0.95, lean: -0.4, x: -2, z: 4, lN: 0.52, lF: -0.18, sy: 1.1, sx: 0.93, head: -0.34 }), "io"],
+      [0, S2({ th: -0.25, psi: 0.1, turn: 0.75, lean: 0.45, x: 3, z: 1, lN: 0.75, lF: -0.55, sx: 1.06 }), "in"],
+      [0.04, S2({ th: 0.98, psi: 0.3, turn: 0.6, lean: 0.62, x: 5, crouch: 7, lN: 0.88, lF: -0.72, sx: 1.16, sy: 0.84 }), "lin"],
+      [0.3, S2({ th: 1.04, psi: 0.34, turn: 0.6, lean: 0.58, x: 5, crouch: 6, lN: 0.88, lF: -0.72, sx: 1.06, sy: 0.9 }), "out"],
+      [r(0.78), S2({ th: 0.55, psi: 0.3, turn: 0.75, lean: 0.08, x: 3, crouch: 3, lN: 0.6, lF: -0.5, sy: 1.03 }), "io"],
+      [r(1), S2({ th: 0.4, psi: 0.15 }), "io"],
     ];
     case "leapslam": return [ // a crouch, a huge leap with the hammer wound behind the head, and the whole weight brought down
       [w(1), S2({ th: 0.5, psi: 0.2 })],
       [w(0.78), S2({ th: 1.0, psi: -2.3, turn: 1, lean: 0.32, crouch: 6, x: -2, lN: 0.6, lF: -0.6, sy: 0.85, sx: 1.08 }), "out"],
       [w(0.45), S2({ th: -1.6, psi: -0.6, turn: 0.95, lean: -0.3, z: 17, lN: 0.9, lF: 0.3, sy: 1.12, sx: 0.92, head: -0.3 }), "out"],
-      [w(0.12), S2({ th: -2.55, psi: -0.5, turn: 0.95, lean: -0.44, z: 21, lN: 0.8, lF: 0.4, sy: 1.08, head: -0.36 }), "io"],
+      [w(0.06), S2({ th: -2.6, psi: -0.5, turn: 0.95, lean: -0.46, z: 21, lN: 0.8, lF: 0.4, sy: 1.08, head: -0.36 }), "io"], // hung at the top of the leap
       [0, S2({ th: -0.4, psi: 0.15, turn: 0.8, lean: 0.45, z: 8, lN: 0.9, lF: -0.3, sx: 1.05 }), "in"],
-      [0.05, S2({ th: 1.25, psi: 0.3, turn: 0.65, lean: 0.66, crouch: 7, lN: 0.92, lF: -0.82, sx: 1.18, sy: 0.84, x: 4 }), "lin"],
-      [0.26, S2({ th: 1.35, psi: 0.35, turn: 0.65, lean: 0.56, crouch: 6, lN: 0.92, lF: -0.82, sy: 0.88, x: 4 }), "out"],
+      [0.05, S2({ th: 0.98, psi: 0.3, turn: 0.65, lean: 0.66, crouch: 7, lN: 0.92, lF: -0.82, sx: 1.18, sy: 0.84, x: 4 }), "lin"],
+      [0.26, S2({ th: 1.04, psi: 0.35, turn: 0.65, lean: 0.56, crouch: 6, lN: 0.92, lF: -0.82, sy: 0.88, x: 4 }), "out"],
       [r(1), S2({ th: 0.5, psi: 0.2 }), "io"],
     ];
     // ---- the reaper
@@ -512,7 +523,7 @@ export function swingPose(W, def, t) {
   const wrist = Math.max(-0.7, Math.min(0.7, lead * 0.45));
   if (pose.z > 1) pose.plant = false;
   if (W.swing === "spin" || (W.swing === "reapspin" && t > 0.02)) pose.turn = 0.55 + 0.4 * Math.cos(q.psi); // the torso turns with the blade
-  pose.aN = aim(b1) + (W.kind === "lance" ? 0 : wrist);
+  pose.aN = aim(b1) + (W.kind === "lance" ? 0 : W.heavy ? wrist * 0.15 : wrist);
   // a lance is held along the forearm for sweeps but levelled from the hip for thrusts
   if (q.arm !== undefined) pose.aN = q.arm + (pose.aN - q.arm) * (q.fa ?? 0);
   if (W.both) { const b2 = bladeDir(q.th2 ?? q.th, q.psi2 ?? -q.psi); blades.push({ d: b2, arm: "armF" }); pose.aF = aim(b2); }
@@ -601,8 +612,8 @@ export function trackSwing(hero, pose, W, dt) {
   hero.swept = hero.swept.filter((q) => q.t > 0);
   if (!hero.blades) return;
   hero.blades.forEach((B, i) => {
-    const h = H[B.arm], len = (W.len ?? 14) * grow * (B.arm === "armF" ? 0.9 : 1);
-    const g0 = W.kind === "lance" ? 0.7 : W.kind === "hammer" ? 0.75 : 0.3, t1 = W.kind === "lance" ? 1.35 : W.kind === "scythe" ? 1.4 : 1.15;
+    const h = H[B.arm], len = (W.len ?? 14) * (W.kind === "hammer" ? 1 : grow) * (B.arm === "armF" ? 0.9 : 1);
+    const g0 = W.kind === "lance" ? 0.7 : W.kind === "hammer" ? 0.9 : 0.3, t1 = W.kind === "lance" ? 1.35 : W.kind === "scythe" ? 1.4 : W.kind === "hammer" ? 1.0 + (W.big ? 13 : 10) / (W.len ?? 11) : 1.15;
     hero.swept.push({ i, g: [h.x + f * B.d.x * len * g0, h.y + B.d.y * len * g0], tp: [h.x + f * B.d.x * len * t1, h.y + B.d.y * len * t1], z: B.d.z, t: 0.11, life: 0.11 });
   });
 }

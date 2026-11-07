@@ -333,10 +333,10 @@ export const SKILLS = {
     },
     2: {
       basic: {
-        name: "대지 망치", desc: "돌 망치를 끌어올렸다가 뛰어오르며 땅에 내리꽂는다. 앞의 땅에서 바위 가시가 솟는다.", pose: "cleave", windup: 0.3, recover: 0.46,
-        fx: [{ t: 0.1, id: "nature/earth-spike", dx: 50, dur: 0.55 }],
-        hits: [{ t: 0.06, box: [6, 60, 22], dmg: 1.5, stop: 0.13, kb: 120, st: { stun: 0.3 } }, { t: 0.14, circ: [20, 54], dmg: 0.6, up: 60 }],
-        cam: [{ t: 0.06, shake: 3.5 }],
+        name: "대지 망치", desc: "무거운 돌 망치를 머리 위로 들어 올렸다가 온 체중을 실어 땅에 내리꽂는다. 앞의 땅에서 바위 가시가 솟는다.", pose: "cleave", windup: 0.36, recover: 0.56,
+        fx: [{ t: 0.1, id: "nature/earth-spike", dx: 46, dur: 0.55 }],
+        hits: [{ t: 0.04, box: [6, 50, 22], dmg: 1.6, stop: 0.16, kb: 120, st: { stun: 0.35 } }, { t: 0.14, circ: [20, 48], dmg: 0.6, up: 60 }],
+        cam: [{ t: 0.04, shake: 4.5 }],
       },
       skills: [{
         name: "가시 솟음", desc: "앞쪽 땅에서 돌가시가 솟아 적을 띄운다.", pose: "stomp", windup: 0.2, recover: 0.3, cd: 5,
@@ -353,9 +353,9 @@ export const SKILLS = {
       basic: {
         name: "거암 강타", desc: "크게 뛰어올라 거대한 바위 망치를 온몸으로 내리찍는다. 충격파가 주위를 날리고 바위 가시가 줄지어 솟는다.", pose: "slam", windup: 0.42, recover: 0.5,
         dash: { t0: -0.3, t1: -0.05, dist: 22 },
-        fx: [{ t: 0.05, id: "impacts/ground-slam", dx: 24, opts: { reach: 60 }, dur: 0.5 }, { t: 0.15, id: "nature/earth-spike", dx: 64, dur: 0.55 }],
-        hits: [{ t: 0.05, circ: [46, 24], dmg: 1.7, stop: 0.15, kb: 170, up: 50, st: { stun: 0.35 } }, { t: 0.12, circ: [22, 46], dmg: 0.6, up: 80 }, { t: 0.19, circ: [22, 74], dmg: 0.6, up: 80 }],
-        cam: [{ t: 0.05, shake: 5, flash: 0.08 }],
+        fx: [{ t: 0.12, id: "nature/earth-spike", dx: 44, dur: 0.55 }, { t: 0.2, id: "nature/earth-spike", dx: 68, dur: 0.55 }],
+        hits: [{ t: 0.05, circ: [46, 24], dmg: 1.7, stop: 0.18, kb: 170, up: 50, st: { stun: 0.35 } }, { t: 0.12, circ: [22, 46], dmg: 0.6, up: 80 }, { t: 0.19, circ: [22, 74], dmg: 0.6, up: 80 }],
+        cam: [{ t: 0.05, shake: 5.5 }],
       },
       skills: [{
         name: "가시 지대", desc: "앞으로 가시덤불이 줄지어 솟는다.", pose: "stomp", windup: 0.2, recover: 0.35, cd: 6,
