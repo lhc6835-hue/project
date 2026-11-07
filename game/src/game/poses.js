@@ -304,22 +304,19 @@ export function archetype(name, W = 0.2, R = 0.3) {
     ];
     // ---- fire: boxing. Hands up by the chin, every punch thrown from the hip and shoulder (the body slides
     // and stretches into it) and pulled straight back to the guard; the cross turns the chest to the viewer.
-    case "jab3": { // jab, jab, cross — the stance barely moves; the fist travels straight from the chin and back
-      const G = (o = {}) => ({ turn: 0.9, aN: 2.05, aF: 2.3, lean: 0.06, crouch: 2, lN: 0.42, lF: -0.4, x: 0, head: 0.04, ...o });
-      const J = (x) => G({ aN: 1.6, x, lean: 0.1, sx: 1.03, lF: -0.46 });
+    case "jab3": { // straight punches pistoning from the hip: one fist drives out to full reach at shoulder height
+      // while the other snaps back to the hip (eN/eF shorten the arm, so a chambered fist sits tight at the side)
+      const N = (x, o = {}) => ({ turn: 1, aN: 1.6, eN: 1.08, aF: 0.05, eF: 0.6, lean: 0.12, crouch: 2, lN: 0.58, lF: -0.52, x, sx: 1.05, sy: 0.97, ...o });
+      const F = (x, o = {}) => ({ turn: 1, aN: 0.05, eN: 0.6, aF: 1.6, eF: 1.12, lean: 0.14, crouch: 2, lN: 0.6, lF: -0.54, x, sx: 1.05, sy: 0.97, ...o });
       return [
         [w(1), { ...STANCE }],
-        [w(0.5), G(), "out"],                                                      // guard up
-        [0, J(2), "snap"],                                                         // jab
-        [0.03, G({ aN: 1.66, x: 2.4, lean: 0.11 }), "out"],                        // overshoot
-        [0.06, G({ x: 1 }), "out"],                                                // snap back to the guard
-        [0.09, J(3), "snap"],                                                      // jab
-        [0.12, G({ aN: 1.66, x: 3.3, lean: 0.11 }), "out"],
-        [0.15, G({ x: 2 }), "out"],
-        [0.17, G({ x: 1, turn: 1, aN: 2.3, aF: 1.9, lean: -0.02, crouch: 2.7, lF: -0.36, sx: 0.97 }), "io"], // pull back, hips coil
-        [0.2, G({ turn: 0.62, aN: 1.55, aF: 2.2, x: 5, lean: 0.15, sx: 1.07, sy: 0.97, lN: 0.5, lF: -0.54 }), "snap"], // the power straight
-        [0.27, G({ turn: 0.62, aN: 1.58, aF: 2.15, x: 5.6, lean: 0.16, lN: 0.5, lF: -0.54 }), "out"],    // drive through, held
-        [0.34, G({ x: 2.5 }), "io"],
+        [w(0.6), { turn: 0.95, aN: 0.1, eN: 0.6, aF: 0.15, eF: 0.62, lean: 0.05, crouch: 2.8, lN: 0.5, lF: -0.48, x: -1 }, "out"], // both fists at the hips
+        [-0.005, F(1.5), "out"], [0.025, F(1.8), "lin"],    // each punch lands early and is held a moment so it reads
+        [0.055, N(3), "out"], [0.085, N(3.3), "lin"],
+        [0.115, F(4.5), "out"], [0.14, F(4.7), "lin"],
+        [0.17, { turn: 1, aN: -0.25, eN: 0.55, aF: 0.3, eF: 0.66, lean: 0.03, crouch: 2.9, lN: 0.55, lF: -0.5, x: 4.5, sx: 0.98 }, "out"], // load the last one
+        [0.195, N(7.5, { eN: 1.14, lean: 0.2, sx: 1.1, sy: 0.94, lN: 0.7, lF: -0.62, aF: -0.2 }), "out"],
+        [0.27, N(8.2, { eN: 1.12, lean: 0.2, lN: 0.7, lF: -0.62, aF: -0.15 }), "out"],
         [r(1), { ...STANCE }, "io"],
       ];
     }

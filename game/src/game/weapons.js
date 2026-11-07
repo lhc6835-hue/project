@@ -12,7 +12,7 @@ export const WEAPON_BY_MOVE = {
   "질풍 돌진": { kind: "chakram", tier: 2, both: true, held: true },
   // fire: no weapon, just fists and feet wreathed in flame
   // punches: [time, arm, size] — a burst of flame where each one lands
-  "화염 연권": { kind: "fist", both: true, shock: true, punches: [[0, "armN", 1], [0.09, "armN", 1], [0.2, "armN", 1.6]] },
+  "화염 연권": { kind: "fist", both: true, shock: true, punches: [[0, "armF", 1], [0.06, "armN", 1], [0.12, "armF", 1], [0.2, "armN", 1.6]] },
   "화염 난타": { kind: "fist", both: true, punches: [[0, "armN", 1], [0.055, "armF", 1], [0.11, "armN", 1], [0.165, "armF", 1], [0.25, "armN", 2]] },
   "업화 승룡권": { kind: "fist", both: true, big: true, punches: [[0, "armN", 2.2, 1]] },
   "불씨탄": { kind: "orb", r: 3 },

@@ -156,8 +156,8 @@ export const SKILLS = {
   fire: {
     1: {
       basic: {
-        name: "화염 연권", desc: "불붙은 주먹으로 잽 두 번에 허리를 틀어 체중을 실은 스트레이트를 꽂는다. 마지막 한 방은 불태운다.", pose: "jab3", windup: 0.08, recover: 0.42,
-        hits: [{ t: 0.0, box: [2, 34, 15], dmg: 0.34, stop: 0.04, kb: 10 }, { t: 0.09, box: [2, 34, 15], dmg: 0.36, stop: 0.04, kb: 12 }, { t: 0.2, box: [2, 38, 16], dmg: 0.66, stop: 0.08, kb: 90, st: { burn: 1.5 } }],
+        name: "화염 연권", desc: "불붙은 양 주먹을 뒤에서 앞으로 번갈아 빠르게 내지르고, 마지막 한 방으로 불태운다.", pose: "jab3", windup: 0.08, recover: 0.38,
+        hits: [0, 0.06, 0.12].map((t) => ({ t, box: [2, 36, 15], dmg: 0.28, stop: 0.03, kb: 10 })).concat([{ t: 0.2, box: [2, 40, 16], dmg: 0.6, stop: 0.08, kb: 90, st: { burn: 1.5 } }]),
         cam: [{ t: 0.2, shake: 1.6 }],
       },
       skills: [{

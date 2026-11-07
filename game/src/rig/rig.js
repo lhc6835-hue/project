@@ -26,7 +26,7 @@ export const BODY = {
 };
 export const LEG = 12;
 
-export const NEUTRAL = { x: 0, y: 0, z: 0, lean: 0, head: 0, aN: 0, aF: 0, lN: 0, lF: 0, crouch: 0, sx: 1, sy: 1, turn: 0.8 };
+export const NEUTRAL = { x: 0, y: 0, z: 0, lean: 0, head: 0, aN: 0, aF: 0, lN: 0, lF: 0, crouch: 0, sx: 1, sy: 1, turn: 0.8, eN: 1, eF: 1 }; // eN/eF: arm reach (short = foreshortened, a bent arm)
 const CHANNELS = Object.keys(NEUTRAL);
 
 /** Skin: a body ramp and outline. far parts use one step darker. */
@@ -64,12 +64,12 @@ export function layout(pose, k = 1) {
   };
   const legH = Math.max(4, B.leg.h - P.crouch);
   const parts = [
-    { name: "armF", spec: B.arm, at: tilt(shF), a: P.lean * 0.25 - P.aF, far: true },
+    { name: "armF", spec: P.eF === 1 ? B.arm : { ...B.arm, h: B.arm.h * P.eF }, at: tilt(shF), a: P.lean * 0.25 - P.aF, far: true },
     { name: "legF", spec: { ...B.leg, h: legH }, at: [hipF[0] * k, (hipF[1] + c) * k], a: -P.lF, far: true },
     { name: "torso", spec: { ...B.torso, w: torsoW }, at: waist, a: P.lean },
     { name: "legN", spec: { ...B.leg, h: legH }, at: [hipN[0] * k, (hipN[1] + c) * k], a: -P.lN },
     { name: "head", spec: { ...B.head, w: headW }, at: tilt(neck), a: P.lean + P.head },
-    { name: "armN", spec: B.arm, at: tilt(shN), a: P.lean * 0.25 - P.aN },
+    { name: "armN", spec: P.eN === 1 ? B.arm : { ...B.arm, h: B.arm.h * P.eN }, at: tilt(shN), a: P.lean * 0.25 - P.aN },
   ];
   // front-on, the far arm hangs beside the body; drawn after the torso it reads as the other side
   if (tr < 0.25) { const i = parts.findIndex((p) => p.name === "armF"); const [a] = parts.splice(i, 1); parts.splice(2, 0, a); }
@@ -85,8 +85,8 @@ export function anchor(pose, name, k = 1) {
   const P = { ...NEUTRAL, ...pose };
   const sq = ([x, y]) => [x * P.sx, y * P.sy];
   switch (name) {
-    case "handN": return sq(tip(find("armN"), BODY.arm.h));
-    case "handF": return sq(tip(find("armF"), BODY.arm.h));
+    case "handN": { const a = find("armN"); return sq(tip(a, a.spec.h)); }
+    case "handF": { const a = find("armF"); return sq(tip(a, a.spec.h)); }
     case "chest": return sq(tip(find("torso"), 6));
     case "neck": { const t = find("torso"); const [dx, dy] = rot(-2.5 * k, (0 - t.spec.ay) * k, t.a); return sq([t.at[0] + dx, t.at[1] + dy + 1]); }
     case "headTop": return sq(tip(find("head"), 0));

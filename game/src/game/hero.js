@@ -29,7 +29,7 @@ export class Hero extends Actor {
     this.ghosts = []; this.basicQueued = false; this.dashT = 0; this.dashDir = [1, 0];
     this.speed = this.stats.speed;
     this.contactCd = 0;
-    this.anim = new Animator(); this.scarf = new Scarf([0, 6, 8, 10][this.stage], 3.4); this.trail = new Trail(); this.dust = new Dust();
+    this.anim = new Animator(); this.scarf = new Scarf([0, 6, 8, 10][this.stage], 3.4); this.trail = new Trail(); this.trailF = new Trail(); this.dust = new Dust();
     this.cur = {}; this.weaponK = 0; this.prevX = this.x; this.prevY = this.y; this.prevFlip = this.flip; this.vel = [0, 0]; this.stepU = 0; this.wasAir = false; this.lastHand = null;
     this.traits = (def.traits ?? []).map((k) => TRAITS[k]).filter(Boolean);
     this.buildLook();
@@ -235,8 +235,14 @@ export class Hero extends Actor {
       const h = anchor(out, "handN"), hx = rx + ff * h[0], hy = ry + h[1];
       if (this.lastHand && Math.hypot(hx - this.lastHand[0], hy - this.lastHand[1]) > 2.5) this.trail.add(hx, hy, this.stage >= 2 ? 0.14 : 0.1);
       this.lastHand = [hx, hy];
-    } else this.lastHand = null;
-    this.trail.update(dt); this.dust.update(dt);
+      // bare-fisted fighters swing both arms: the far fist leaves its own streak
+      if (WEAPON_BY_MOVE[this.act.def.name]?.kind === "fist") {
+        const g = anchor(out, "handF"), gx = rx + ff * g[0], gy = ry + g[1];
+        if (this.lastHandF && Math.hypot(gx - this.lastHandF[0], gy - this.lastHandF[1]) > 2.5) this.trailF.add(gx, gy, 0.1);
+        this.lastHandF = [gx, gy];
+      } else this.lastHandF = null;
+    } else this.lastHand = this.lastHandF = null;
+    this.trail.update(dt); this.trailF.update(dt); this.dust.update(dt);
     // the conjured weapon: solid while the move plays, dissolving as it ends
     const wdef = this.act && this.act.busy ? WEAPON_BY_MOVE[this.act.def.name] : null;
     if (wdef) { this.weapon = wdef; const end = this.act.t > (this.act.def.recover ?? 0.3) - 0.08; this.weaponK = Math.min(1, this.weaponK + dt * (end ? -8 : 14)); }
@@ -292,7 +298,8 @@ export class Hero extends Actor {
     else if (!this.dead) drawWeapon(p, this, pose, this.weapon, this.weaponK ?? 0, this.t);
     p.reset();
     for (const t of this.traits) t.draw?.(this, p);
-    this.trail.draw(p, this.ramps.main.map((c) => (typeof c === "number" ? c : hex(c))), this.glowC);
+    const tr = this.ramps.main.map((c) => (typeof c === "number" ? c : hex(c)));
+    this.trailF.draw(p, tr, this.glowC); this.trail.draw(p, tr, this.glowC);
     if ((this.stage >= 3 || this.el === "code") && !this.dead) this.drawCrown(p, pose, flip);
   }
 
