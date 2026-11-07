@@ -242,32 +242,33 @@ export function archetype(name, W = 0.2, R = 0.3) {
       [0.12, { aN: 2.85, aF: 2.7, lean: -0.14, z: 3, plant: false, lN: 0.25, lF: -0.3, head: -0.25, sy: 1.04 }, "back"],
       [r(1), { aN: 2.6, aF: 2.45, lean: -0.1, z: 2, plant: false, lN: 0.25, lF: -0.25, head: -0.2 }, "io"],
     ];
-    // Archery, after the coaching shot cycle: turn side-on, raise and extend the bow arm, draw the string
-    // straight back to an anchor by the face, a held beat to aim, release by relaxing the fingers (the
-    // string hand flies back past the ear on its own), and a follow-through that keeps the bow arm up.
+    // Archery with game punch: a dip before the draw (anticipation), a deep lunge while drawing with the bow
+    // canted, a held aim, then the release kicks the whole body back — string hand snapping past the ear,
+    // bow arm jolting forward — and settles with an overshoot. At full power the archer leaps back as it fires.
     case "bow": case "bow3": {
-      const heavy = name === "bow3", k = heavy ? 1.15 : 1;
+      const heavy = name === "bow3", k = heavy ? 1.25 : 1;
       return [
         [w(1), { ...STANCE, turn: 0.9 }],
-        [w(0.78), { turn: 1, aN: 1.45, aF: 1.35, lean: 0.02, lN: 0.5, lF: -0.5, head: 0.02, sy: 1.01 }, "out"],                 // raise & nock
-        [w(0.2), { turn: 1, aN: 1.58, aF: -1.55 * k, lean: -0.1 * k, lN: 0.55, lF: -0.55, x: -1, head: 0.08, sx: 0.98, sy: 1.02 }, "io"], // draw to anchor
-        [w(0.02), { turn: 1, aN: 1.6, aF: -1.62 * k, lean: -0.12 * k, lN: 0.55, lF: -0.55, x: -1.5, head: 0.1, sx: 0.98, sy: 1.02 }, "io"], // aim
-        [0, { turn: 1, aN: 1.62, aF: -2.25, lean: -0.18 * k, lN: 0.56, lF: -0.56, x: -2.5 * k, head: 0.06, sx: 1.02, sy: 0.99 }, "snap"], // release
-        [0.12, { turn: 1, aN: 1.58, aF: -2.15, lean: -0.1, lN: 0.55, lF: -0.55, x: -2, head: 0.04 }, "back"],                       // follow-through
-        [r(0.65), { turn: 0.95, aN: 1.3, aF: -0.6, lean: 0.02, lN: 0.48, lF: -0.48, x: -1 }, "io"],
+        [w(0.82), { turn: 1, aN: 1.2, aF: 1.2, lean: 0.18, lN: 0.42, lF: -0.42, crouch: 3 * k, sx: 1.04, sy: 0.94, head: 0.1 }, "out"],       // dip & nock
+        [w(0.32), { turn: 1, aN: 1.62, aF: -1.6 * k, lean: -0.16 * k, lN: 0.72, lF: -0.72, crouch: 4 * k, x: -1.5, head: 0.14, sx: 0.97, sy: 1.03 }, "out"], // lunge & draw
+        [w(0.04), { turn: 1, aN: 1.64, aF: -1.72 * k, lean: -0.2 * k, lN: 0.74, lF: -0.74, crouch: 4.5 * k, x: -2, head: 0.16, sx: 0.96, sy: 1.04 }, "io"], // aim, straining
+        [0, { turn: 1, aN: 1.78, aF: -2.45, lean: -0.36 * k, lN: 0.62, lF: -0.82, crouch: 1, x: -5 * k, z: heavy ? 7 : 0, plant: !heavy, head: 0.02, sx: 1.08, sy: 0.93 }, "snap"], // release kick
+        [0.1, { turn: 1, aN: 1.55, aF: -2.3, lean: -0.24, lN: 0.6, lF: -0.7, crouch: 2, x: -6 * k, z: heavy ? 5 : 0, plant: !heavy, head: 0.04 }, "out"],
+        [0.2, { turn: 1, aN: 1.5, aF: -1.9, lean: -0.08, lN: 0.62, lF: -0.62, crouch: 3.5, x: -6.5 * k, z: 0, head: 0.06, sx: 1.06, sy: 0.94 }, "in"],   // land / settle
+        [r(0.7), { turn: 0.95, aN: 1.2, aF: -0.4, lean: 0.04, lN: 0.5, lF: -0.5, crouch: 1.5, x: -4 }, "back"],
         [r(1), { ...STANCE }, "io"],
       ];
     }
     case "bow2": return [
-      // two arrows: a quick first draw, release, and the hand snaps back to the string for a second shot
+      // twin shot: draw, fire, the body whips round as the hand snaps back to the string, fire again harder
       [w(1), { ...STANCE, turn: 0.9 }],
-      [w(0.7), { turn: 1, aN: 1.45, aF: 1.35, lN: 0.5, lF: -0.5, head: 0.02 }, "out"],
-      [w(0.05), { turn: 1, aN: 1.58, aF: -1.5, lean: -0.1, lN: 0.55, lF: -0.55, x: -1, head: 0.08, sx: 0.98, sy: 1.02 }, "io"],
-      [0, { turn: 1, aN: 1.62, aF: -2.1, lean: -0.16, lN: 0.56, lF: -0.56, x: -2, head: 0.06, sx: 1.02 }, "snap"],
-      [0.045, { turn: 1, aN: 1.6, aF: 1.25, lean: -0.05, lN: 0.55, lF: -0.55, x: -1.5 }, "out"],                   // back to the string
-      [0.1, { turn: 1, aN: 1.6, aF: -1.55, lean: -0.12, lN: 0.55, lF: -0.55, x: -1.5, head: 0.08 }, "io"],          // second draw
-      [0.11, { turn: 1, aN: 1.62, aF: -2.25, lean: -0.18, lN: 0.56, lF: -0.56, x: -3, sx: 1.03 }, "snap"],         // second release
-      [0.22, { turn: 1, aN: 1.58, aF: -2.15, lean: -0.1, lN: 0.55, lF: -0.55, x: -2 }, "back"],
+      [w(0.75), { turn: 1, aN: 1.2, aF: 1.2, lean: 0.16, lN: 0.44, lF: -0.44, crouch: 3, sx: 1.04, sy: 0.95 }, "out"],
+      [w(0.08), { turn: 1, aN: 1.62, aF: -1.62, lean: -0.16, lN: 0.72, lF: -0.72, crouch: 4, x: -1.5, head: 0.14, sx: 0.97, sy: 1.03 }, "out"],
+      [0, { turn: 1, aN: 1.76, aF: -2.35, lean: -0.3, lN: 0.64, lF: -0.8, crouch: 2, x: -4, sx: 1.06, sy: 0.95 }, "snap"],
+      [0.045, { turn: 0.85, aN: 1.6, aF: 1.3, lean: 0.12, lN: 0.7, lF: -0.7, crouch: 4, x: -3.5, head: 0.12 }, "out"],              // whip back to the string
+      [0.1, { turn: 1, aN: 1.64, aF: -1.7, lean: -0.2, lN: 0.74, lF: -0.74, crouch: 4.5, x: -3.5, head: 0.16 }, "io"],
+      [0.11, { turn: 1, aN: 1.8, aF: -2.5, lean: -0.4, lN: 0.6, lF: -0.85, crouch: 1, x: -8, sx: 1.08, sy: 0.93 }, "snap"],       // second, bigger kick
+      [0.24, { turn: 1, aN: 1.52, aF: -2.1, lean: -0.1, lN: 0.62, lF: -0.62, crouch: 3.5, x: -8.5, sx: 1.05, sy: 0.95 }, "out"],
       [r(1), { ...STANCE }, "io"],
     ];
     case "point": return [

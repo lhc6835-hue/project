@@ -106,6 +106,10 @@ export function drawWeapon(p, hero, pose, W, k, t) {
         const behind = (H2.x - h.x) * dir[0] + (H2.y - h.y) * dir[1] < -2;
         const drawn = behind && ((at < 0 && at > -wind * 0.8) || (two && at > 0.05 && at < 0.11));
         const half = len * 0.5, bend = len * (tier === 3 ? 0.24 : 0.3) * (drawn ? 0.7 : 1);
+        // the bow cants while drawn and jolts forward on the release
+        const rel0 = two && at > 0.11 ? at - 0.11 : at, cant = drawn ? -0.3 : rel0 > 0 && rel0 < 0.22 ? -0.3 - 0.18 * Math.sin(Math.min(1, rel0 / 0.22) * Math.PI) : 0;
+        const fwd = [flip ? -1 : 1, 0];
+        { const c = Math.cos(cant), sn = Math.sin(cant), d0 = [dir[0], dir[1]], q0 = [perp[0], perp[1]]; dir[0] = d0[0] * c + q0[0] * sn; dir[1] = d0[1] * c + q0[1] * sn; perp[0] = q0[0] * c - d0[0] * sn; perp[1] = q0[1] * c - d0[1] * sn; }
         const pt = (s, inset = 0) => { const rc = tier === 2 ? Math.pow(Math.abs(s), 5) * len * 0.2 : tier === 3 ? Math.pow(Math.abs(s), 4) * len * 0.12 : 0;
           return [h.x + perp[0] * s * half + dir[0] * ((1 - s * s) * bend + rc - inset), h.y + perp[1] * s * half + dir[1] * ((1 - s * s) * bend + rc - inset)]; };
         const limb = (inset, wdt, cols, gk) => { let prev = pt(-1, inset); for (let i = 1; i <= 14; i++) { const s = -1 + (i / 14) * 2, q = pt(s, inset); stroke(p, prev[0], prev[1], q[0], q[1], () => wdt * (1.15 - Math.abs(s) * 0.5), cols, aa, glow, gk); prev = q; } };
@@ -135,6 +139,20 @@ export function drawWeapon(p, hero, pose, W, k, t) {
           for (let i = 0; i < 3; i++) { const an = t * 3 + i * 2.1; p.put(Math.round(gx + Math.cos(an) * 6), Math.round(gy + Math.sin(an) * 3.5), R[n - 1], aa); }
         }
         for (let i = 0; i < tier; i++) { const ph = (t * 1.3 + i * 0.37) % 1, q = pt(i % 2 ? 0.8 : -0.8); p.put(Math.round(q[0]), Math.round(q[1] + ph * 6), R[n - 2], aa * (1 - ph)); }
+        // while drawn, water gathers spiralling into the arrowhead
+        if (drawn) for (let i = 0; i < 3 + tier * 3; i++) {
+          const ph = (t * (2.2 + tier * 0.4) + i / (3 + tier * 3)) % 1, an = i * 2.4 + t * 9, rr = (1 - ph) * (8 + tier * 4);
+          const cx = h.x + dir[0] * (4 + tier * 2.5) + Math.cos(an) * rr, cy = h.y + dir[1] * (4 + tier * 2.5) + Math.sin(an) * rr * 0.7;
+          p.put(Math.round(cx), Math.round(cy), R[n - (ph > 0.6 ? 1 : 2)], aa * (0.4 + ph * 0.6)); p.add(Math.round(cx), Math.round(cy), glow, 0.3 * aa * ph);
+        }
+        // the release: a white streak off the bow and a ring of spray
+        if (rel0 > 0 && rel0 < 0.16) {
+          const u = rel0 / 0.16, L2 = (18 + tier * 8) * (0.4 + u), w2 = (1.6 + tier * 0.4) * (1 - u);
+          stroke(p, h.x + fwd[0] * 3, h.y, h.x + fwd[0] * (3 + L2), h.y, () => w2, [hex("#ffffff"), R[n - 1]], aa * (1 - u), glow, 0.4);
+          const ring = (4 + tier * 3) + u * (10 + tier * 5);
+          for (let i = 0; i < 10 + tier * 4; i++) { const an = i / (10 + tier * 4) * Math.PI * 2; p.put(Math.round(h.x + Math.cos(an) * ring * 0.45 + fwd[0] * 5), Math.round(h.y + Math.sin(an) * ring), R[n - 1], aa * (1 - u)); }
+          for (let j = -8; j <= 8; j++) for (let i = -8; i <= 8; i++) { const d = i * i + j * j; if (d < 64) p.add(Math.round(h.x + fwd[0] * 5 + i), Math.round(h.y + j), glow, (0.25 + tier * 0.08) * aa * (1 - u) * (1 - d / 64)); }
+        }
         break;
       }
       case "spear": {
