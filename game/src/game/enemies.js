@@ -2,7 +2,9 @@
 import { hex, mix, fit, toHex, clamp } from "../px.js";
 import { Actor } from "./actor.js";
 import { drawRig, makeSkin, lerpPose, anchor } from "../rig/rig.js";
-import { idlePose, movePose, sampleKeys, archetype, HURT, DEAD } from "./poses.js";
+import { idlePose, movePose, sampleKeys, stepTime, archetype, HURT, DEAD } from "./poses.js";
+// attacks drawn on held 12 fps steps, like the hero's
+const stepped = (K, t) => sampleKeys(K, stepTime(K, t), lerpPose);
 import { ELEMENTS } from "../data/elements.js";
 import { DEPTH_K } from "./world.js";
 import { sfx } from "../core/audio.js";
@@ -351,11 +353,11 @@ export class Enemy extends Actor {
     let pose;
     const W = 0.5, ai = this.D.ai;
     if (this.dead || this.state === "bones") pose = DEAD;
-    else if (this.state === "tele" && ai === "archer") pose = sampleKeys(archetype("point", 0.3, 0.4), Math.min(0.2, 0.75 - this.stT), lerpPose);
-    else if (this.state === "tele" && ai === "caster") pose = sampleKeys(archetype("raise", 0.3, 0.8), 1.0 - this.stT - 0.3, lerpPose);
-    else if (this.state === "aim" && ai === "imp") pose = sampleKeys(archetype("throw", 0.3, 0.3), 0.45 - this.stT - 0.3, lerpPose);
-    else if (this.state === "tele") pose = sampleKeys(archetype("slash", W, 0.35), -this.stT, lerpPose);
-    else if (this.state === "swing") pose = sampleKeys(archetype("slash", W, 0.35), 0.35 - this.stT, lerpPose);
+    else if (this.state === "tele" && ai === "archer") pose = stepped(archetype("point", 0.3, 0.4), Math.min(0.2, 0.75 - this.stT));
+    else if (this.state === "tele" && ai === "caster") pose = stepped(archetype("raise", 0.3, 0.8), 1.0 - this.stT - 0.3);
+    else if (this.state === "aim" && ai === "imp") pose = stepped(archetype("throw", 0.3, 0.3), 0.45 - this.stT - 0.3);
+    else if (this.state === "tele") pose = stepped(archetype("slash", W, 0.35), -this.stT);
+    else if (this.state === "swing") pose = stepped(archetype("slash", W, 0.35), 0.35 - this.stT);
     else if (this.hitFlash > 0) pose = lerpPose(this.lastPose, HURT, 0.6);
     else if (this.moving) pose = movePose(ai === "stalker" ? 2 : 1, ai === "stalker" ? "wind" : "earth", this.t * 0.8);
     else pose = idlePose(ai === "stalker" || ai === "brawler" ? 2 : 1, "earth", this.t);

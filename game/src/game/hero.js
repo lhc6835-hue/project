@@ -3,7 +3,7 @@ import { HURT_SHAKE } from "./juice.js";
 import { hex, mix, fit, toHex, clamp } from "../px.js";
 import { Actor } from "./actor.js";
 import { drawRig, makeSkin, lerpPose, anchor, SKIN } from "../rig/rig.js";
-import { idlePose, movePose, sampleKeys, HURT, DEAD } from "./poses.js";
+import { idlePose, movePose, sampleKeys, stepTime, HURT, DEAD } from "./poses.js";
 import { Animator, Scarf, Trail, Dust } from "./animator.js";
 import { Action } from "./actions.js";
 import { ELEMENTS } from "../data/elements.js";
@@ -189,11 +189,11 @@ export class Hero extends Actor {
       const { pose, blades } = swingPose(WEAPON_BY_MOVE[this.act.def.name], this.act.def, this.act.t);
       this.blades = blades;
       if (this.stage >= 3) { pose.z = Math.max(pose.z ?? 0, 3); pose.plant = false; }
-      return [pose, "act"];
+      return [pose, "step"];
     }
     if (this.act && this.act.busy) {
-      const raw = sampleKeys(this.act.keys, this.act.t, lerpPose);
-      let p = { ...raw };
+      const raw = sampleKeys(this.act.keys, stepTime(this.act.keys, this.act.t), lerpPose), sm = sampleKeys(this.act.keys, this.act.t, lerpPose);
+      let p = { ...raw, x: sm.x, y: sm.y, z: sm.z };
       if (raw.spin) {
         // a full turn: profile → front → other profile → front → back to profile
         const s = clamp(this.act.t / 0.26);
@@ -201,7 +201,7 @@ export class Hero extends Actor {
         this.spinFlip = s > 0.25 && s < 0.75;
       }
       if (this.stage >= 3) { p.z = Math.max(p.z ?? 0, 3); p.plant = false; }
-      return [p, "act"];
+      return [p, "step"];
     }
     if (this.moving) return [movePose(this.stage, this.el, this.walkT, 1), "move"];
     return [idlePose(this.stage, this.el, this.t), "move"];
@@ -242,6 +242,12 @@ export class Hero extends Actor {
         this.lastHandF = [gx, gy];
       } else this.lastHandF = null;
     } else this.lastHand = this.lastHandF = null;
+    // the strike frame: an after-image, and a scuff of dust where the feet drive
+    if (this.act && this.act.busy && this.prevActT !== undefined && this.prevActT < 0 && this.act.t >= 0) {
+      this.ghost();
+      if (this.stage < 3 && (tg.z ?? 0) < 2) { this.dust.puff(this.x - (this.flip ? -5 : 5), this.y, 4, this.flip ? 1 : -1); this.dust.puff(this.x + (this.flip ? -8 : 8), this.y, 3, this.flip ? -1 : 1); }
+    }
+    this.prevActT = this.act && this.act.busy ? this.act.t : undefined;
     this.trail.update(dt); this.trailF.update(dt); this.dust.update(dt);
     // the conjured weapon: solid while the move plays, dissolving as it ends
     const wdef = this.act && this.act.busy ? WEAPON_BY_MOVE[this.act.def.name] : null;

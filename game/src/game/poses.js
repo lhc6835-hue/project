@@ -391,6 +391,20 @@ export function archetype(name, W = 0.2, R = 0.3) {
   }
 }
 
+/**
+ * Hold limbs on 12 fps steps counted from each key (as pixelfx's acts and Dead Cells' sprites do): within a
+ * segment the time moves in whole steps, so poses read as drawings rather than a mushy blend, and every key
+ * still lands exactly. Keys are [t, …] in order.
+ */
+export function stepTime(keys, t, fps = 12) {
+  if (t <= keys[0][0]) return t;
+  for (let i = 0; i < keys.length - 1; i++) {
+    const t0 = keys[i][0], t1 = keys[i + 1][0];
+    if (t < t1) return Math.min(t1 - 1e-4, t0 + Math.floor((t - t0) * fps + 1e-6) / fps);
+  }
+  return t;
+}
+
 /** Sample attack keyframes at time t (relative to the release). */
 export function sampleKeys(keys, t, lerp) {
   if (t <= keys[0][0]) return keys[0][1];

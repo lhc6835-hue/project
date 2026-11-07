@@ -21,10 +21,12 @@ export class Animator {
   push(off) { for (const [k, v] of Object.entries(off)) this.kick[k] = (this.kick[k] ?? 0) + v; }
 
   update(target, dt, mode = "move") {
-    const R = RATE[mode] ?? RATE.move, o = this.out;
+    const R = RATE[mode] ?? RATE.act, o = this.out;
     if (!this.init) { Object.assign(o, NEUTRAL, target); this.init = true; }
     for (const ch of CHANNELS) {
       const tv = target[ch] ?? NEUTRAL[ch];
+      // "step": an attack drawn on held steps — limbs take each pose as it comes, only the body's travel is smoothed
+      if (mode === "step" && ch !== "x" && ch !== "y" && ch !== "z") { o[ch] = tv; continue; }
       const k = 1 - Math.exp(-(R[ch] ?? R.base) * dt);
       o[ch] += (tv - o[ch]) * k;
     }

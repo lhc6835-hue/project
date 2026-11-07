@@ -334,7 +334,7 @@ export const SKILLS = {
     2: {
       basic: {
         name: "대지 망치", desc: "돌 망치를 끌어올렸다가 뛰어오르며 땅에 내리꽂는다. 앞의 땅에서 바위 가시가 솟는다.", pose: "cleave", windup: 0.3, recover: 0.46,
-        fx: [{ t: 0.06, id: "impacts/ground-slam", dx: 30, opts: { reach: 50 }, dur: 0.5 }, { t: 0.12, id: "nature/earth-spike", dx: 52, dur: 0.6 }],
+        fx: [{ t: 0.1, id: "nature/earth-spike", dx: 50, dur: 0.55 }],
         hits: [{ t: 0.06, box: [6, 60, 22], dmg: 1.5, stop: 0.13, kb: 120, st: { stun: 0.3 } }, { t: 0.14, circ: [20, 54], dmg: 0.6, up: 60 }],
         cam: [{ t: 0.06, shake: 3.5 }],
       },
@@ -394,6 +394,6 @@ export function skillFxIds() {
     if (m.special?.cloud) ids.add(m.special.cloud);
   };
   for (const el of Object.values(SKILLS)) for (const st of Object.values(el)) { walk(st.basic); st.skills.forEach(walk); walk(st.ult); }
-  ["lightning/zap-hit", "lightning/spark-arc", "impacts/hit-spark", "ice/ice-shatter", "scifi/emp-blast", "scifi/glitch", "spawn/disintegrate", "holy/smite", "holy/blessing"].forEach((i) => ids.add(i));
+  ["melee/sword-slash", "lightning/zap-hit", "lightning/spark-arc", "impacts/hit-spark", "ice/ice-shatter", "scifi/emp-blast", "scifi/glitch", "spawn/disintegrate", "holy/smite", "holy/blessing"].forEach((i) => ids.add(i));
   return [...ids];
 }

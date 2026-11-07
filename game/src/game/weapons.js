@@ -4,6 +4,7 @@
 import { hex, mix } from "../px.js";
 import { layout, NEUTRAL } from "../rig/rig.js";
 import { keys } from "./boss_rig.js";
+import { stepTime } from "./poses.js";
 
 // which move conjures what. len: blade length (px), both: one in each hand
 export const WEAPON_BY_MOVE = {
@@ -499,13 +500,19 @@ function fitKeys(kind, W, R) {
   KCACHE.set(id, K); return K;
 }
 export function swingPose(W, def, t) {
-  const K = fitKeys(W.swing, def.windup ?? 0.15, def.recover ?? 0.3), q = keys(K, t);
+  // limbs and blade on 12 fps steps; the body's travel (x, z) stays smooth
+  const K = fitKeys(W.swing, def.windup ?? 0.15, def.recover ?? 0.3), tq = stepTime(K, t), q = keys(K, tq), qs = keys(K, t);
   const b1 = bladeDir(q.th, q.psi), blades = [{ d: b1, arm: "armN" }];
   const aim = (d) => Math.atan2(d.x, d.y);   // rig arm angle: 0 down, +π/2 forward
-  const pose = { lN: q.lN, lF: q.lF, lean: q.lean, crouch: q.crouch, x: q.x, sx: q.sx, sy: q.sy, head: q.head, turn: q.turn, z: q.z ?? 0 };
+  const pose = { lN: q.lN, lF: q.lF, lean: q.lean, crouch: q.crouch, x: qs.x, sx: q.sx, sy: q.sy, head: q.head, turn: q.turn, z: qs.z ?? 0 };
+  // the hand leads and the blade lags it: aim the arm part of the way toward where the blade is going next,
+  // so the wrist breaks and the blade whips through
+  const qn = keys(K, stepTime(K, tq + 1 / 12 + 1e-3)), bn = bladeDir(qn.th, qn.psi);
+  let lead = aim(bn) - aim(b1); lead = Math.atan2(Math.sin(lead), Math.cos(lead));
+  const wrist = Math.max(-0.7, Math.min(0.7, lead * 0.45));
   if (pose.z > 1) pose.plant = false;
   if (W.swing === "spin" || (W.swing === "reapspin" && t > 0.02)) pose.turn = 0.55 + 0.4 * Math.cos(q.psi); // the torso turns with the blade
-  pose.aN = aim(b1);
+  pose.aN = aim(b1) + (W.kind === "lance" ? 0 : wrist);
   // a lance is held along the forearm for sweeps but levelled from the hip for thrusts
   if (q.arm !== undefined) pose.aN = q.arm + (pose.aN - q.arm) * (q.fa ?? 0);
   if (W.both) { const b2 = bladeDir(q.th2 ?? q.th, q.psi2 ?? -q.psi); blades.push({ d: b2, arm: "armF" }); pose.aF = aim(b2); }
