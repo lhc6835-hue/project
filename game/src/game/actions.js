@@ -78,7 +78,7 @@ export class Action {
       if (this.target && !p.spread && Math.sign(this.target.x - o.x) === f) a2 = Math.atan2((this.target.y - o.y) / 0.55, this.target.x - o.x);
       const ramp = this.rampOf(p.ramp ?? "main");
       const pr = new Projectile({ ...p, team: o.team, src: o, el: o.el, stage: this.stage, ramp, light: this.light(), ang: a2, x: o.x + f * 8, y: o.y + 0.5, z: (p.z ?? 16) + o.z, life: p.life ?? 3 });
-      pr.fxRef = w.fx(p.fx, { ramp, light: this.light(), opts: p.opts, x: pr.x, y: pr.y, z: pr.z, flip: o.flip, angle: Math.atan2(pr.vy, Math.abs(pr.vx)) * f * (o.flip ? -1 : 1) });
+      pr.fxRef = p.fx && w.fx(p.fx, { ramp, light: this.light(), opts: p.opts, x: pr.x, y: pr.y, z: pr.z, flip: o.flip, angle: Math.atan2(pr.vy, Math.abs(pr.vx)) * f * (o.flip ? -1 : 1) });
       if (pr.fxRef) pr.fxRef.sortY = undefined;
       w.projs.push(pr);
     });

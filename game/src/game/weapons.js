@@ -12,7 +12,7 @@ export const WEAPON_BY_MOVE = {
   // fire
   "불꽃 할퀴기": { kind: "claws", len: 6, both: true }, "불씨탄": { kind: "orb", r: 3 }, "화염 회전베기": { kind: "blade", len: 19, flame: true, swing: "spin" }, "업화 강타": { kind: "greatsword", len: 27, flame: true, swing: "overhead", two: true },
   // water
-  "물방울탄": { kind: "orb", r: 3.5, both: true }, "물채찍": { kind: "whip", len: 30 }, "격류 베기": { kind: "greatsword", len: 26, swing: "rising", two: true }, "얼음창": { kind: "spear", len: 24, ramp: "ice" },
+  "물의 활": { kind: "bow", len: 15 }, "쌍류 화살": { kind: "bow", len: 17 }, "격류의 화살": { kind: "bow", len: 20, big: true }, "얼음창": { kind: "spear", len: 24, ramp: "ice" },
   // earth
   "바위 주먹": { kind: "gauntlet" }, "돌 던지기": { kind: "rock" }, "대지 망치": { kind: "hammer", len: 20, swing: "overhead", two: true }, "지진 내려찍기": { kind: "gauntlet", both: true },
   // light
@@ -95,6 +95,25 @@ export function drawWeapon(p, hero, pose, W, k, t) {
         const r = (W.r ?? 3) * grow + flick * 0.4, cx = h.x + dir[0] * 2, cy = h.y + dir[1] * 2;
         for (let j = -Math.ceil(r); j <= Math.ceil(r); j++) for (let i = -Math.ceil(r); i <= Math.ceil(r); i++) { const d = Math.hypot(i, j); if (d <= r) p.put(Math.round(cx + i), Math.round(cy + j), R[Math.max(0, Math.min(n - 1, Math.round((1 - d / (r + 0.5)) * (n - 1))))], aa); }
         for (let j = -7; j <= 7; j++) for (let i = -7; i <= 7; i++) { const d = i * i + j * j; if (d < 49) p.add(Math.round(cx + i), Math.round(cy + j), glow, 0.12 * aa * (1 - d / 49)); }
+        break;
+      }
+      case "bow": {
+        if (arm !== "armN") break;
+        // a bow of running water held out front; the string runs to the drawing hand, an arrow nocked on it
+        const H2 = H.armF, half = len * 0.5, bend = len * 0.3, at = hero.act?.t ?? 1, drawn = at < 0 && at > -(hero.act?.def?.windup ?? 0.2) * 0.6;
+        const pt = (s) => [h.x + perp[0] * s * half + dir[0] * (1 - s * s) * bend * (drawn ? 0.75 : 1), h.y + perp[1] * s * half + dir[1] * (1 - s * s) * bend * (drawn ? 0.75 : 1)];
+        let prev = pt(-1);
+        for (let i = 1; i <= 12; i++) { const s = -1 + (i / 12) * 2, q = pt(s); stroke(p, prev[0], prev[1], q[0], q[1], (u) => 1.1 - Math.abs(s) * 0.5, bright, aa, glow, 0.22); prev = q; }
+        const top = pt(-1), bot = pt(1), nock = drawn ? [H2.x, H2.y] : [h.x - dir[0] * 1.5, h.y - dir[1] * 1.5];
+        stroke(p, top[0], top[1], nock[0], nock[1], 0.35, [R[n - 1]], aa * 0.9);
+        stroke(p, bot[0], bot[1], nock[0], nock[1], 0.35, [R[n - 1]], aa * 0.9);
+        if (drawn) {
+          const tipA = [h.x + dir[0] * (W.big ? 9 : 6), h.y + dir[1] * (W.big ? 9 : 6)];
+          stroke(p, nock[0], nock[1], tipA[0], tipA[1], W.big ? 0.9 : 0.6, bright, aa, glow, 0.35);
+          for (let j = -6; j <= 6; j++) for (let i = -6; i <= 6; i++) { const d = i * i + j * j; if (d < 36) p.add(Math.round(tipA[0] + i), Math.round(tipA[1] + j), glow, 0.18 * aa * (1 - d / 36)); }
+        }
+        // droplets dripping off the limbs
+        for (let i = 0; i < 2; i++) { const ph = (t * 1.3 + i * 0.5) % 1, q = pt(i ? 0.8 : -0.8); p.put(Math.round(q[0]), Math.round(q[1] + ph * 6), R[n - 2], aa * (1 - ph)); }
         break;
       }
       case "spear": {

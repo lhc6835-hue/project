@@ -262,6 +262,9 @@ export class Projectile {
         this.hitSet.add(e);
         w.hit(this.src, e, { dmg: this.dmg * (this.src.stats?.atk ?? 1), el: this.el, kb: this.kb ?? 60, st: this.st, stage: this.stage, fxRamp: this.ramp, from: [this.x - this.vx * 0.1, this.y] });
         if (!this.pierce) return this.end(w, true);
+        // a piercing shot bursts on everything it passes through
+        if (this.hitFx) w.fx(this.hitFx, { x: e.x, y: e.y + 1, ramp: this.ramp, light: this.light, flip: this.vx < 0 });
+        if (this.hitR) for (const o of targets) if (o !== e && !this.hitSet.has(o) && Math.hypot(o.x - e.x, (o.y - e.y) * DEPTH_K) <= this.hitR + o.r) w.hit(this.src, o, { dmg: this.hitDmg * (this.src.stats?.atk ?? 1), el: this.el, kb: 60, st: this.st, stage: this.stage, fxRamp: this.ramp, from: [e.x, e.y] });
       }
     }
   }
@@ -279,5 +282,25 @@ export class Projectile {
       }
     }
   }
-  draw() {}
+  draw(p) {
+    if (this.style !== "waterArrow") return;
+    // an arrow of running water: a bright shaft and head along its flight, streamers and droplets behind
+    p.reset();
+    const R = (this.ramp ?? ["#0c2a5a", "#1c66c0", "#5ab8ff", "#c8f0ff", "#ffffff"]).map((c) => (typeof c === "number" ? c : hex(c))), n = R.length;
+    const x = this.x, y = this.y - this.z, vl = Math.hypot(this.vx, this.vy * 0.8) || 1, dx = this.vx / vl, dy = this.vy * 0.8 / vl, px = -dy, py = dx;
+    const L = this.big ? 14 : 10;
+    this.tr = this.tr ?? [];
+    this.tr.unshift([x, y]); if (this.tr.length > (this.big ? 10 : 7)) this.tr.pop();
+    for (let i = 1; i < this.tr.length; i++) {
+      const [ax, ay] = this.tr[i - 1], [bx, by] = this.tr[i], k = i / this.tr.length;
+      for (let s = 0; s <= 3; s++) { const u = s / 3, cx = ax + (bx - ax) * u, cy = ay + (by - ay) * u;
+        for (const side of [-1, 1]) { const w = Math.sin(this.t * 30 + i + side) * 1.5 * k; p.blendPx(Math.round(cx - dx * L * 0.5 + px * side * (1 + w)), Math.round(cy - dy * L * 0.5 + py * side * (1 + w)), R[n - 2], 0.55 * (1 - k)); }
+      }
+    }
+    for (let s = 0; s <= L; s++) { const X = Math.round(x - dx * s), Y = Math.round(y - dy * s), c = s < 3 ? R[n - 1] : R[n - 2]; p.put(X, Y, c); if (this.big) p.put(X + Math.round(px), Y + Math.round(py), R[n - 3]); p.add(X, Y, R[n - 2], 0.25); }
+    for (const side of [-1, 1]) for (let s = 1; s <= 3; s++) p.put(Math.round(x - dx * s + px * side * s * 0.8), Math.round(y - dy * s + py * side * s * 0.8), R[n - 1]);
+    for (let s = 0; s < 3; s++) { const q = Math.sin(this.t * 40 + s * 2); p.put(Math.round(x - dx * (L + 2 + s * 3) + px * q * 2), Math.round(y - dy * (L + 2 + s * 3) + py * q * 2), R[n - 3], 0.8); }
+    for (let j = -5; j <= 5; j++) for (let i = -5; i <= 5; i++) { const d = i * i + j * j; if (d < 25) p.add(Math.round(x + i), Math.round(y + j), R[n - 2], 0.15 * (1 - d / 25)); }
+  }
+
 }

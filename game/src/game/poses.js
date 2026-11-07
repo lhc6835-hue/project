@@ -242,6 +242,15 @@ export function archetype(name, W = 0.2, R = 0.3) {
       [0.12, { aN: 2.85, aF: 2.7, lean: -0.14, z: 3, plant: false, lN: 0.25, lF: -0.3, head: -0.25, sy: 1.04 }, "back"],
       [r(1), { aN: 2.6, aF: 2.45, lean: -0.1, z: 2, plant: false, lN: 0.25, lF: -0.25, head: -0.2 }, "io"],
     ];
+    case "bow": return [
+      // nock and draw: the bow arm reaches forward, the string hand pulls back to the cheek, release snaps
+      [w(1), { ...STANCE }],
+      [w(0.55), { aN: 1.55, aF: 1.45, lean: 0.05, lN: 0.42, lF: -0.42, head: 0.05 }, "out"],
+      [w(0.05), { aN: 1.6, aF: -0.35, lean: -0.12, lN: 0.48, lF: -0.5, x: -2, head: 0.1, sx: 0.97, sy: 1.02 }, "io"],
+      [0, { aN: 1.62, aF: 1.15, lean: -0.2, lN: 0.5, lF: -0.5, x: -3, sx: 1.03, sy: 0.98 }, "snap"],
+      [0.1, { aN: 1.5, aF: 0.7, lean: -0.08, lN: 0.46, lF: -0.46, x: -2 }, "back"],
+      [r(1), { ...STANCE }, "io"],
+    ];
     case "point": return [
       [w(1), { ...STANCE }],
       [w(0.3), { aN: 2.9, aF: 0.4, lean: -0.15, lN: 0.35, lF: -0.38, head: -0.2, sy: 1.03 }, "out"],

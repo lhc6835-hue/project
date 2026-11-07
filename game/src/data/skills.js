@@ -204,10 +204,10 @@ export const SKILLS = {
   water: {
     1: {
       basic: {
-        name: "물방울탄", desc: "짧은 사거리로 물방울 세 발을 흩뿌린다.", pose: "cast", windup: 0.12, recover: 0.32,
-        proj: [-0.22, 0, 0.22].map((a) => ({ t: 0, fx: "water/water-orb", opts: { radius: 4 }, speed: 250, range: 105, r: 7, dmg: 0.5, z: 16, spread: a, hitFx: "impacts/hit-spark", st: { slow: 1 } })),
+        name: "물의 활", desc: "물로 빚은 활을 당겨 물살 화살을 쏜다. 맞은 적은 느려진다.", pose: "bow", windup: 0.18, recover: 0.24,
+        proj: [{ t: 0, style: "waterArrow", speed: 340, range: 200, r: 6, dmg: 1.0, z: 18, hitFx: "water/splash", kb: 50, st: { slow: 1 } }],
       },
-      skills: [{
+            skills: [{
         name: "물보라", desc: "발밑에서 물을 터뜨려 주변 적을 밀쳐내고 느리게 한다.", pose: "stomp", windup: 0.18, recover: 0.3, cd: 4,
         fx: [{ t: 0, id: "water/splash" }, { t: 0.05, id: "water/ripples", dur: 1 }],
         hits: [{ t: 0.05, circ: [50, 0], dmg: 1.6, kb: 170, stop: 0.06, st: { slow: 2.5 } }],
@@ -215,11 +215,11 @@ export const SKILLS = {
     },
     2: {
       basic: {
-        name: "물채찍", desc: "물로 된 채찍을 휘둘러 앞을 길게 친다.", pose: "whip", windup: 0.16, recover: 0.34,
-        fx: [{ t: -0.16, id: "melee/whip-crack" }],
-        hits: [{ t: 0.05, box: [8, 88, 16], dmg: 1.05, stop: 0.07, kb: 70, st: { slow: 1.5 } }],
+        name: "쌍류 화살", desc: "두 발의 물살 화살을 연달아 쏜다. 화살은 적을 꿰뚫는다.", pose: "bow", windup: 0.16, recover: 0.3,
+        proj: [{ t: 0, style: "waterArrow", speed: 380, range: 230, r: 6, dmg: 0.68, z: 18, pierce: true, hitFx: "water/splash", kb: 40, st: { slow: 1.5 } },
+          { t: 0.11, style: "waterArrow", speed: 380, range: 230, r: 6, dmg: 0.68, z: 18, pierce: true, hitFx: "water/splash", kb: 40, st: { slow: 1.5 } }],
       },
-      skills: [{
+            skills: [{
         name: "물줄기", desc: "앞쪽으로 꿰뚫는 물줄기를 쏜다.", pose: "channel", windup: 0.15, recover: 1.0, cd: 6, root: 1.0,
         fx: [{ t: 0, id: "water/water-jet", dy: -17, dx: 8, dur: 0.95, follow: true }],
         ticks: [{ t0: 0.05, t1: 0.95, every: 0.1, box: [8, 130, 14], dmg: 0.35, kb: 25, st: { slow: 1.5 } }],
@@ -231,12 +231,13 @@ export const SKILLS = {
     },
     3: {
       basic: {
-        name: "격류 베기", desc: "물을 두른 팔로 크게 내려 베고 물보라를 일으킨다.", pose: "cleave", windup: 0.3, recover: 0.42,
-        fx: [{ t: -0.3, id: "melee/heavy-cleave", dur: 0.9 }, { t: 0.02, id: "water/splash", dx: 40, dur: 0.9 }],
-        hits: [{ t: 0.0, box: [0, 74, 24], dmg: 1.4, stop: 0.1, kb: 130, st: { slow: 2 } }, { t: 0.05, circ: [32, 40], dmg: 0.7 }],
+        name: "격류의 화살", desc: "물살을 휘감은 큰 화살과 곁화살 두 발. 큰 화살은 꿰뚫고, 맞는 곳마다 물보라가 터진다.", pose: "bow", windup: 0.24, recover: 0.32,
+        proj: [{ t: 0, style: "waterArrow", big: true, speed: 400, range: 260, r: 8, dmg: 1.45, z: 18, pierce: true, hitFx: "water/splash", hitR: 22, hitDmg: 0.45, burst: false, kb: 90, st: { slow: 2 } },
+          { t: 0.02, style: "waterArrow", speed: 360, range: 200, r: 5, dmg: 0.5, z: 18, spread: -0.14, hitFx: "impacts/hit-spark", st: { slow: 1 } },
+          { t: 0.02, style: "waterArrow", speed: 360, range: 200, r: 5, dmg: 0.5, z: 18, spread: 0.14, hitFx: "impacts/hit-spark", st: { slow: 1 } }],
         cam: [{ t: 0, shake: 2 }],
       },
-      skills: [{
+            skills: [{
         name: "해일", desc: "거대한 파도를 일으켜 앞의 적을 쓸어버린다.", pose: "raise", windup: 0.2, recover: 0.5, cd: 7,
         fx: [{ t: 0, id: "water/wave-crash", dx: 30 }],
         ticks: [{ t0: 0.5, t1: 1.9, every: 0.25, box: [-30, 130, 26], dmg: 0.9, kb: 120, st: { slow: 2 } }],
@@ -378,7 +379,7 @@ export function skillFxIds() {
   const walk = (m) => {
     if (!m) return;
     m.fx?.forEach((f) => ids.add(f.id));
-    m.proj?.forEach((p) => { ids.add(p.fx); if (p.hitFx) ids.add(p.hitFx); });
+    m.proj?.forEach((p) => { if (p.fx) ids.add(p.fx); if (p.hitFx) ids.add(p.hitFx); });
     if (m.special?.fx) ids.add(m.special.fx);
     if (m.special?.cloud) ids.add(m.special.cloud);
   };
