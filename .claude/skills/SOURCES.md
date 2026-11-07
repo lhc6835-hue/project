@@ -19,7 +19,10 @@ itself or runs on its own; scripts only run when a skill is used. Each folder ke
 | color-expert | meodai/skill.color-expert | CC-BY-4.0 (by meodai / David Aerne) | colour theory, palettes and ramps |
 | caveman, investigate-first, surgical-patch, verify-and-stop | JuliusBrussee/caveman | see each LICENSE | terse "caveman mode" to save tokens (only when asked), focused debugging and small fixes |
 | paleo, paleo-summary, paleo-trim-context, paleo-budget | mocasus/paleo | MIT | token saving: summarising long output, trimming context, token budgets (only when asked) |
-| systematic-debugging, verification-before-completion | obra/superpowers | MIT | root-cause debugging, proving work before calling it done |
 
 Left out on purpose: caveman-compress (sends file contents to an outside AI API), paleo-auto (switches to
 terse replies on its own), sprite-gen (needs paid image APIs), and skills for engines this game does not use.
+
+## Plugins
+
+- **superpowers** (obra/superpowers v7.0.2, MIT): installed as a project plugin through `.claude/settings.json`, using `extraKnownMarketplaces` and `enabledPlugins`. It provides 15 skills under `superpowers:*`: brainstorming, writing-plans, executing-plans, TDD, systematic-debugging, verification-before-completion, code review and others. Its SessionStart hook only injects the using-superpowers skill text and makes no network calls.

@@ -8,5 +8,16 @@
       "Bash(node tools/check.mjs:*)",
       "Bash(node tools/act.mjs:*)"
     ]
+  },
+  "extraKnownMarketplaces": {
+    "superpowers-dev": {
+      "source": {
+        "source": "github",
+        "repo": "obra/superpowers"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "superpowers@superpowers-dev": true
   }
 }
