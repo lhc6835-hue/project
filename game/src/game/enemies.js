@@ -21,7 +21,7 @@ export const ENEMY_DEFS = {
   brute: { name: "블록 거한", rig: true, k: 1.35, hp: 160, atk: 18, speed: 30, r: 11, h: 46, ai: "brawler", gold: 9, heavyish: true },
   // critters with new minds
   frog: { name: "독두꺼비", fx: "critters/frog", hp: 40, atk: 12, speed: 30, r: 8, h: 12, ai: "leaper", gold: 3 },
-  snake: { name: "그림자 뱀", fx: "critters/snake", hp: 34, atk: 13, speed: 40, r: 9, h: 8, ai: "lunger", gold: 3 },
+  snake: { name: "그림자 뱀", beast: "snake", hp: 34, atk: 13, speed: 40, r: 9, h: 8, ai: "lunger", gold: 3 },
   jelly: { name: "전기 해파리", fx: "critters/jellyfish", hp: 44, atk: 10, speed: 22, r: 9, h: 18, z: 24, flying: true, ai: "shocker", gold: 4 },
   butterfly: { name: "치유 나비", fx: "critters/butterfly", hp: 26, atk: 0, speed: 46, r: 8, h: 10, z: 22, flying: true, ai: "healer", gold: 4 },
   bird: { name: "칼날 새", fx: "critters/bird", hp: 22, atk: 9, speed: 80, r: 7, h: 10, z: 20, flying: true, ai: "swooper", gold: 2 },
@@ -443,6 +443,8 @@ export class Enemy extends Actor {
       const spin = t * 2;
       sculpt(p, x, y - 40 + Math.sin(t * 3) * 1.5, (u, v) => sd.poly(u, v, [[0, -7], [4 * Math.cos(spin), 0], [0, 7], [-4 * Math.cos(spin), 0]]), { ramp: body, r: 9, glow: [eye, 0.5], tint, alpha: a, soft: 2 });
       glow(p, x, y - 40, 12, eye, 0.35 * a);
+    } else if (B === "snake") {
+      this.drawSnake(p, tint, a, body, eye);
     } else if (B === "mimic") {
       const open = this.state === "disguised" ? 0 : this.state === "tele" ? 1 : 0.35 + 0.35 * Math.max(0, Math.sin(t * 6));
       const W2 = rampC(["#160c06", "#2e1a0c", "#4a2c14", "#6a421e", "#8e5c2c", "#b47c40"]), gold = hex("#ffd84a");
@@ -452,6 +454,60 @@ export class Enemy extends Actor {
       if (open > 0.1) for (const s of [-3, 3]) { p.put(x + s, y - 16 - Math.round(open * 6), eye, a); glow(p, x + s, y - 16 - open * 6, 4, eye, 0.5 * a); }
       if (this.state === "disguised" && Math.sin(t * 2) > 0.95) glow(p, x, y - 10, 10, gold, 0.5);
     }
+  }
+
+  /**
+   * A snake built as a chain: the head leads and every segment is pulled along behind the one before it, so the
+   * body follows the path the head took. Moving, the head weaves from side to side across the floor (seen from
+   * the side, that sideways S reads as a gentle up-and-down in depth) and the body carries the S back along
+   * itself. Coiling to strike, the body bunches up, the head rears high and back and the tail rattles; on the
+   * strike the head shoots out low with the jaws open and the body is dragged straight behind it.
+   */
+  drawSnake(p, tint, a, body, eye) {
+    const f = this.flip ? -1 : 1, N = 13, t = this.t;
+    const coil = this.state === "tele", strike = this.state === "dash";
+    const sp = coil ? 1.5 : strike ? 2.6 : 2.2;
+    const weave = this.moving && !strike ? Math.sin(t * 9) * 2.6 : coil ? Math.sin(t * 5) * 1.2 : 0;
+    const head = [this.x + f * (coil ? -3 : strike ? 5 : 2), this.y + weave];
+    if (!this.spine) this.spine = Array.from({ length: N }, (_, i) => [head[0] - f * i * sp, head[1]]);
+    const S = this.spine; S[0] = head;
+    for (let i = 1; i < N; i++) {
+      const dx = S[i][0] - S[i - 1][0], dy = (S[i][1] - S[i - 1][1]) * 2, d = Math.hypot(dx, dy) || 1;
+      if (d > sp) { S[i][0] = S[i - 1][0] + (dx / d) * sp; S[i][1] = S[i - 1][1] + (dy / d) * sp / 2; }
+      // coiled, the body folds into a tight S instead of lying in a line
+      if (coil) S[i][1] += Math.sin(i * 0.9) * 0.35;
+    }
+    if (coil) S[N - 1][1] += Math.sin(t * 60) * 0.8; // the rattle
+    const lift = coil ? 12 : strike ? 4 : 5 + Math.sin(t * 3) * 0.6;
+    const R = (i) => (i === 0 ? 3.4 : Math.max(1, 3.6 - Math.max(0, i - 4) * 0.3));
+    const Z = (i) => (i < 5 ? lift * Math.pow(1 - i / 5, 1.6) : 0);
+    const out = tint ?? body[0], belly = mix(body[3], hex("#e8d8a0"), 0.35);
+    // a wave running from the neck to the tail: a lazy sway at rest, a real slither on the move
+    const amp = strike ? 0 : coil ? 0.4 : this.moving ? 2.2 : 1.3, spd = this.moving ? 9 : 2.2;
+    const pts = S.map((q, i) => { const w = i < 2 ? 0 : Math.sin(i * 0.75 - t * spd) * amp * Math.min(1, (i - 1) / 3); return [q[0], q[1] + w - this.z - Z(i) - R(i) + 1, R(i)]; });
+    // ink first (so the overlapping segments don't outline each other), then the scales, tail first
+    for (const [cx, cy, r] of pts) for (let j = -r - 1; j <= r + 1; j++) for (let i = -r - 1; i <= r + 1; i++) if (i * i + j * j <= (r + 1) * (r + 1)) p.put(Math.round(cx + i), Math.round(cy + j), out, a);
+    for (let k = N - 1; k >= 0; k--) {
+      const [cx, cy, r] = pts[k], band = k % 3 === 1;
+      for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
+        if (i * i + j * j > r * r) continue;
+        const v = j / r, c = tint ?? (v > 0.35 ? belly : v < -0.45 ? body[band ? 2 : 4] : band ? body[1] : body[3]);
+        p.put(Math.round(cx + i), Math.round(cy + j), c, a);
+      }
+    }
+    // the head: a wedge with a brow, the jaw dropping open when it rears or strikes
+    const [hx, hy] = pts[0], open = coil ? 1.5 + Math.sin(t * 8) * 0.5 : strike ? 3 : 0;
+    for (let j = -3; j <= 2; j++) for (let i = 0; i <= 6; i++) {
+      if (j < -3 + i * 0.25 || j > 2 - i * 0.35) continue;
+      const top = j - open * (i / 6) * 0.5 < 0;
+      if (!top && open < 0.5) continue;
+      const jj = top ? j - open * (i / 6) * 0.5 : j + open * (i / 6) * 0.6;
+      p.put(Math.round(hx + f * i), Math.round(hy + jj), tint ?? (top ? (j < -1 ? body[4] : body[3]) : belly), a);
+    }
+    if (open > 0.5) for (let i = 2; i <= 5; i++) p.put(Math.round(hx + f * i), Math.round(hy + 0.5), hex("#5a0e18"), a);
+    p.put(Math.round(hx + f * 3), Math.round(hy - 2), eye, a); glow(p, hx + f * 3, hy - 2, 4, eye, 0.6 * a);
+    // the tongue flicks out now and then, and stays out while it rears
+    if (!tint && (coil || (t * 1.3) % 2 < 0.25)) { const L = 3 + Math.sin(t * 30) * 1; for (let i = 0; i < L; i++) p.put(Math.round(hx + f * (7 + i)), Math.round(hy + 0.5), hex("#e8304a"), a); p.put(Math.round(hx + f * (7 + L)), Math.round(hy - 0.5), hex("#e8304a"), a); p.put(Math.round(hx + f * (7 + L)), Math.round(hy + 1.5), hex("#e8304a"), a); }
   }
 
   die(src, silent) {
