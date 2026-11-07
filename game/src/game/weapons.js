@@ -11,7 +11,10 @@ export const WEAPON_BY_MOVE = {
   "바람 차크람": { kind: "chakram", tier: 1 }, "쌍풍 차크람": { kind: "chakram", tier: 2, both: true }, "폭풍 차크람": { kind: "chakram", tier: 3 },
   "질풍 돌진": { kind: "chakram", tier: 2, both: true, held: true },
   // fire: no weapon, just fists and feet wreathed in flame
-  "화염 연권": { kind: "fist", both: true, kicks: true }, "화염 선풍각": { kind: "fist", both: true, kicks: true }, "업화 승룡권": { kind: "fist", both: true, big: true },
+  // punches: [time, arm, size] — a burst of flame where each one lands
+  "화염 연권": { kind: "fist", both: true, shock: true, punches: [[0, "armN", 1], [0.09, "armN", 1], [0.2, "armN", 1.6]] },
+  "화염 난타": { kind: "fist", both: true, punches: [[0, "armN", 1], [0.055, "armF", 1], [0.11, "armN", 1], [0.165, "armF", 1], [0.25, "armN", 2]] },
+  "업화 승룡권": { kind: "fist", both: true, big: true, punches: [[0, "armN", 2.2, 1]] },
   "불씨탄": { kind: "orb", r: 3 },
   // water
   "물의 활": { kind: "bow", len: 15, tier: 1 }, "쌍류 화살": { kind: "bow", len: 18, tier: 2 }, "격류의 화살": { kind: "bow", len: 23, tier: 3, big: true }, "얼음창": { kind: "spear", len: 24, ramp: "ice" },
@@ -40,13 +43,6 @@ function hands(pose, x, y, flip) {
   return out;
 }
 
-/** World position of the near foot and the direction the shin points. */
-function footN(pose, x, y, flip) {
-  const P = { ...NEUTRAL, ...pose }, f = flip ? -1 : 1, prt = layout(P).find((q) => q.name === "legN"), len = prt.spec.h - prt.spec.ay;
-  const [dx, dy] = rot(0, len, prt.a);
-  return { x: x + f * P.x + f * (prt.at[0] + dx) * P.sx, y: y + P.y - P.z + (prt.at[1] + dy) * P.sy, dx: f * -Math.sin(prt.a), dy: Math.cos(prt.a) };
-}
-
 /** Tongues of flame licking up from a point, with embers; k scales it. */
 function flameAt(p, x, y, R, glow, a, t, k, seed) {
   const n = R.length;
@@ -57,6 +53,45 @@ function flameAt(p, x, y, R, glow, a, t, k, seed) {
   for (let i = 0; i < 2; i++) { const ph = (t * 1.7 + i * 0.5 + seed * 0.13) % 1; p.put(Math.round(x + Math.sin(i * 4 + t * 3 + seed) * 4 * k), Math.round(y - 4 * k - ph * 9 * k), R[n - 1], a * (1 - ph)); }
   const G = Math.round(6 * k);
   for (let j = -G; j <= G; j++) for (let i = -G; i <= G; i++) { const d = (i * i + j * j) / (G * G); if (d < 1) p.add(Math.round(x + i), Math.round(y - 1 + j), glow, 0.22 * a * (1 - d)); }
+}
+
+/**
+ * Where a flaming punch lands: a streak of fire behind the fist along the punch, a flash and a ring at the
+ * knuckles, and short rays of flame thrown forward. u: 0..1 through the burst; k: size.
+ */
+function punchBurst(p, x, y, fwd, R, glow, a, u, k) {
+  const n = R.length, inv = 1 - u, px = -fwd[1], py = fwd[0];
+  // the streak: the path the fist just travelled, burning out from the back
+  const L = (9 + 5 * k) * (1 - u * 0.6);
+  for (let s = 0; s < L; s++) { const v = s / L, w = (1 - v) * (0.8 + 0.5 * k) * inv; for (let q = -Math.ceil(w); q <= Math.ceil(w); q++) if (Math.abs(q) <= w) p.put(Math.round(x - fwd[0] * s + px * q), Math.round(y - fwd[1] * s + py * q), R[Math.max(1, n - 2 - Math.round(v * 3))], a * inv * (1 - v * 0.7)); }
+  // the flash at the knuckles, white then gone
+  if (u < 0.35) { const r = (1.5 + k) * (1 - u * 2); for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) if (i * i + j * j <= r * r) p.put(Math.round(x + fwd[0] * 2 + i), Math.round(y + fwd[1] * 2 + j), hex("#fff6d8"), a); }
+  // a ring of heat squashed along the punch
+  const rr = (2 + 7 * u) * k * 0.8;
+  for (let m = 0; m < 16; m++) { const an = m / 16 * Math.PI * 2, c = Math.cos(an), sn = Math.sin(an); p.put(Math.round(x + fwd[0] * (3 + c * rr * 0.45) + px * sn * rr), Math.round(y + fwd[1] * (3 + c * rr * 0.45) + py * sn * rr), R[n - 3], a * inv * 0.9); }
+  // rays of flame thrown forward in a fan
+  for (let i = -2; i <= 2; i++) { const an = i * 0.38, dx = fwd[0] * Math.cos(an) - px * Math.sin(an) * -1, dy = fwd[1] * Math.cos(an) + py * Math.sin(an), l0 = (2 + 5 * u) * k, l1 = l0 + (3 + 2 * k) * inv;
+    for (let s = l0; s < l1; s++) p.put(Math.round(x + dx * s), Math.round(y + dy * s), R[n - 2 - (s > (l0 + l1) / 2 ? 1 : 0)], a * inv); }
+  const G = Math.round(5 + 4 * k);
+  for (let j = -G; j <= G; j++) for (let i = -G; i <= G; i++) { const d = (i * i + j * j) / (G * G); if (d < 1) p.add(Math.round(x + fwd[0] * 3 + i), Math.round(y + fwd[1] * 3 + j), glow, 0.35 * a * inv * (1 - d)); }
+}
+
+/**
+ * A punch landing, read as force rather than spray: the knuckles flash white, a flat shock ring stands up in
+ * front of the fist, two speed lines trail behind it along the arm, and a few embers drift off.
+ */
+function punchImpact(p, x, y, fwd, R, glow, a, u, k) {
+  const n = R.length, inv = 1 - u, fx = fwd[0];
+  if (u < 0.3) for (let j = -1; j <= 1; j++) for (let i = 0; i <= 1; i++) p.put(Math.round(x + fx * i), Math.round(y + j), hex("#fff8e8"), a);
+  // the shock ring: an upright ellipse just ahead of the knuckles, opening as it fades
+  const ry = (2.5 + 5 * u) * k, rx = (1 + 1.6 * u) * k, cx = x + fx * (3 + 3 * u);
+  for (let m = 0; m < 20; m++) { const an = m / 20 * Math.PI * 2, X = Math.round(cx + Math.cos(an) * rx), Y = Math.round(y + Math.sin(an) * ry); p.put(X, Y, Math.cos(an) * fx > 0 ? R[n - 1] : R[n - 3], a * inv); }
+  // speed lines behind the fist
+  for (const o of [-2, 2]) { const L = 7 * inv + 2; for (let s = 1; s < L; s++) p.put(Math.round(x - fx * (s + 1)), Math.round(y + o), R[n - 2], a * inv * (1 - s / L)); }
+  // embers
+  for (let i = 0; i < 3; i++) { const an = -0.6 + i * 0.5; p.put(Math.round(x + fx * Math.cos(an) * (3 + u * 9)), Math.round(y + Math.sin(an) * (3 + u * 9) - u * 3), R[n - 2 - (i % 2)], a * inv); }
+  const G = Math.round(4 + 3 * k);
+  for (let j = -G; j <= G; j++) for (let i = -G; i <= G; i++) { const d = (i * i + j * j) / (G * G); if (d < 1) p.add(Math.round(x + fx * 2 + i), Math.round(y + j), glow, 0.3 * a * inv * (1 - d)); }
 }
 
 /** A tilted spinning chakram held at a point. */
@@ -127,11 +162,16 @@ export function drawWeapon(p, hero, pose, W, k, t) {
         break;
       }
       case "fist": {
-        const fr = hero.ramps.main.map((c) => (typeof c === "number" ? c : hex(c)));
-        flameAt(p, h.x + dir[0] * 1.5, h.y + dir[1] * 1.5, fr, glow, aa, t, (W.big ? 1.35 : 1) * (0.85 + st * 0.15), arm === "armF" ? 3 : 0);
-        if (W.kicks && arm === "armN") {
-          const F = footN(pose, hero.x, hero.y - hero.z, flip);
-          if (F.dx * (flip ? -1 : 1) > 0.55) flameAt(p, F.x + F.dx * 2, F.y + F.dy * 2, fr, glow, aa, t, 1.1, 7);
+        // a small flame on the fist (so the fist still reads), and a burst where each punch lands
+        const fr = hero.ramps.main.map((c) => (typeof c === "number" ? c : hex(c))), fx0 = h.x + dir[0] * 1.5, fy0 = h.y + dir[1] * 1.5;
+        flameAt(p, fx0, fy0 - (W.shock ? 1 : 0), fr, glow, aa * (W.shock ? 0.7 : 0.85), t, (W.big ? 0.9 : W.shock ? 0.42 : 0.6) * (0.9 + st * 0.1), arm === "armF" ? 3 : 0);
+        const at = hero.act?.t;
+        if (at !== undefined) for (const [pt, pa, sz, up] of W.punches ?? []) {
+          if (pa !== arm) continue;
+          const u = (at - pt) / 0.11;
+          if (u < 0 || u > 1) continue;
+          if (W.shock) punchImpact(p, fx0 + dir[0] * 1.5, fy0 + dir[1] * 1.5, [flip ? -1 : 1, 0], fr, glow, a, Math.min(1, u * 1.15), sz);
+          else punchBurst(p, fx0 + dir[0] * 2, fy0 + dir[1] * 2, up ? [0, -1] : [flip ? -1 : 1, 0], fr, glow, a, u, sz * (0.85 + st * 0.15));
         }
         break;
       }

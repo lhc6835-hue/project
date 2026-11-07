@@ -156,10 +156,9 @@ export const SKILLS = {
   fire: {
     1: {
       basic: {
-        name: "화염 연권", desc: "불붙은 주먹으로 잽, 스트레이트를 꽂고 앞차기로 마무리한다.", pose: "jab3", windup: 0.08, recover: 0.3,
-        fx: [{ t: 0, id: "impacts/hit-spark", dx: 22, dy: -14 }, { t: 0.08, id: "impacts/hit-spark", dx: 25, dy: -14 }, { t: 0.17, id: "impacts/blunt-hit", dx: 30, dy: -6, dur: 0.45 }],
-        hits: [{ t: 0.0, box: [2, 36, 15], dmg: 0.36, stop: 0.03, kb: 15 }, { t: 0.08, box: [2, 40, 15], dmg: 0.4, stop: 0.04, kb: 20 }, { t: 0.17, box: [4, 46, 17], dmg: 0.62, stop: 0.08, kb: 90, st: { burn: 1.5 } }],
-        cam: [{ t: 0.17, shake: 1.6 }],
+        name: "화염 연권", desc: "불붙은 주먹으로 잽 두 번에 허리를 틀어 체중을 실은 스트레이트를 꽂는다. 마지막 한 방은 불태운다.", pose: "jab3", windup: 0.08, recover: 0.42,
+        hits: [{ t: 0.0, box: [2, 34, 15], dmg: 0.34, stop: 0.04, kb: 10 }, { t: 0.09, box: [2, 34, 15], dmg: 0.36, stop: 0.04, kb: 12 }, { t: 0.2, box: [2, 38, 16], dmg: 0.66, stop: 0.08, kb: 90, st: { burn: 1.5 } }],
+        cam: [{ t: 0.2, shake: 1.6 }],
       },
       skills: [{
         name: "불씨탄", desc: "짧은 사거리의 불덩이를 던져 작게 폭발시킨다.", pose: "throw", windup: 0.18, recover: 0.25, cd: 3.5,
@@ -168,10 +167,9 @@ export const SKILLS = {
     },
     2: {
       basic: {
-        name: "화염 선풍각", desc: "뛰어올라 몸을 회전시키며 불타는 발로 주위를 두 번 걷어찬다.", pose: "whirlkick", windup: 0.14, recover: 0.4,
-        fx: [{ t: 0, id: "melee/spin-slash", opts: { radius: 42 } }, { t: 0.15, id: "fire/fire-ring", opts: { reach: 50 }, dur: 0.5 }],
-        hits: [{ t: 0.06, circ: [42, 0], dmg: 0.6, stop: 0.04 }, { t: 0.19, circ: [46, 0], dmg: 0.85, stop: 0.09, kb: 110, st: { burn: 2 } }],
-        cam: [{ t: 0.19, shake: 2 }],
+        name: "화염 난타", desc: "양 주먹을 번갈아 빠르게 네 번 꽂고, 깊게 디디며 묵직한 스트레이트로 날려 버린다.", pose: "rush", windup: 0.1, recover: 0.42,
+        hits: [0, 0.055, 0.11, 0.165].map((t) => ({ t, box: [2, 40, 16], dmg: 0.24, stop: 0.02, kb: 8 })).concat([{ t: 0.25, box: [4, 50, 18], dmg: 0.85, stop: 0.1, kb: 130, st: { burn: 2 } }]),
+        cam: [{ t: 0.25, shake: 2.2 }],
       },
       skills: [{
         name: "화염 고리", desc: "발밑에서 불길이 고리처럼 퍼져 나간다.", pose: "slam", windup: 0.3, recover: 0.4, cd: 6,
@@ -188,7 +186,6 @@ export const SKILLS = {
       basic: {
         name: "업화 승룡권", desc: "몸을 낮췄다가 튀어 나가며 불꽃을 두른 주먹으로 솟구쳐 올려친다.", pose: "shoryu", windup: 0.24, recover: 0.5,
         dash: { t0: -0.04, t1: 0.06, dist: 28 },
-        fx: [{ t: 0.02, id: "explosions/small-explosion", dx: 16, dy: -14, opts: { size: 0.7 }, dur: 0.6 }, { t: 0.34, id: "fire/fire-ring", opts: { reach: 40 }, dur: 0.5 }],
         hits: [{ t: 0.0, box: [-6, 44, 20], dmg: 1.2, stop: 0.12, kb: 70, up: 120, st: { burn: 3 } }, { t: 0.1, circ: [32, 14], dmg: 0.7, kb: 80, st: { burn: 2 } }],
         cam: [{ t: 0, shake: 3.2 }],
       },

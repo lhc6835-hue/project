@@ -7,7 +7,7 @@ import { hex, mix } from "../px.js";
 
 const RATE = {
   move: { base: 20, head: 9, aF: 14, lF: 16, aN: 18 },
-  act: { base: 46, head: 20, aF: 34, lF: 40, aN: 60 },
+  act: { base: 46, head: 20, aF: 50, lF: 40, aN: 60 },
   hurt: { base: 30, head: 14, aF: 20, lF: 24, aN: 24 },
 };
 

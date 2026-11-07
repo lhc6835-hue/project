@@ -302,27 +302,44 @@ export function archetype(name, W = 0.2, R = 0.3) {
       [r(0.65), { turn: 0.85, aN: 1.0, aF: 0.2, lean: 0.3, crouch: 2.5, x: 6, lN: 0.6, lF: -0.5 }, "back"],
       [r(1), { ...STANCE }, "io"],
     ];
-    // ---- fire: fists and feet. Short wind-ups and each strike snapping in faster than the last.
-    case "jab3": return [ // jab, cross off a hip turn, then a front snap kick
-      [w(1), { ...STANCE }],
-      [w(0.5), { turn: 0.9, aN: 1.0, aF: 1.1, lean: 0.1, crouch: 2.5, lN: 0.45, lF: -0.45, sy: 0.95, x: -1 }, "out"],
-      [0, { turn: 0.95, aN: 1.62, aF: 0.9, lean: 0.3, lN: 0.6, lF: -0.5, x: 4, sx: 1.08, crouch: 1 }, "snap"],
-      [0.04, { turn: 0.9, aN: 1.1, aF: 0.9, lean: 0.22, lN: 0.6, lF: -0.5, x: 4, crouch: 1.5 }, "out"],
-      [0.08, { turn: 0.6, aN: 0.9, aF: 1.65, lean: 0.4, lN: 0.66, lF: -0.6, x: 8, sx: 1.1, crouch: 1 }, "snap"],
-      [0.12, { turn: 0.75, aN: 1.1, aF: 1.0, lean: 0.2, lN: 0.5, lF: -0.5, x: 8, crouch: 2, sy: 0.95 }, "out"],
-      [0.17, { turn: 1, aN: 0.6, aF: 1.2, lean: -0.3, lN: 1.62, lF: -0.25, x: 11, z: 2, plant: false, sx: 1.06, head: -0.05 }, "snap"],
-      [0.23, { turn: 1, aN: 0.7, aF: 1.1, lean: -0.25, lN: 1.45, lF: -0.25, x: 12, z: 1, plant: false }, "out"],
-      [r(1), { ...STANCE }, "io"],
-    ];
-    case "whirlkick": return [ // a sunk crouch, then a leaping tornado kick with the leg out like a blade
-      [w(1), { ...STANCE }],
-      [w(0.5), { aN: -0.6, aF: 1.6, lean: 0.25, crouch: 5, lN: 0.6, lF: -0.6, sy: 0.88, sx: 1.07 }, "out"],
-      [0, { aN: 2.4, aF: 2.0, lean: -0.2, z: 9, plant: false, lN: 1.55, lF: -0.4, sx: 1.05, spin: 1 }, "snap"],
-      [0.13, { aN: 2.2, aF: 2.2, lean: -0.25, z: 12, plant: false, lN: 1.6, lF: -0.3, spin: 1 }, "lin"],
-      [0.26, { aN: 1.8, aF: 1.6, lean: -0.1, z: 7, plant: false, lN: 1.4, lF: -0.4, spin: 1 }, "lin"],
-      [0.32, { aN: 0.8, aF: 0.9, lean: 0.3, crouch: 4, lN: 0.6, lF: -0.55, sy: 0.9, sx: 1.08 }, "in"],
-      [r(1), { ...STANCE }, "io"],
-    ];
+    // ---- fire: boxing. Hands up by the chin, every punch thrown from the hip and shoulder (the body slides
+    // and stretches into it) and pulled straight back to the guard; the cross turns the chest to the viewer.
+    case "jab3": { // jab, jab, cross — the stance barely moves; the fist travels straight from the chin and back
+      const G = (o = {}) => ({ turn: 0.9, aN: 2.05, aF: 2.3, lean: 0.06, crouch: 2, lN: 0.42, lF: -0.4, x: 0, head: 0.04, ...o });
+      const J = (x) => G({ aN: 1.6, x, lean: 0.1, sx: 1.03, lF: -0.46 });
+      return [
+        [w(1), { ...STANCE }],
+        [w(0.5), G(), "out"],                                                      // guard up
+        [0, J(2), "snap"],                                                         // jab
+        [0.03, G({ aN: 1.66, x: 2.4, lean: 0.11 }), "out"],                        // overshoot
+        [0.06, G({ x: 1 }), "out"],                                                // snap back to the guard
+        [0.09, J(3), "snap"],                                                      // jab
+        [0.12, G({ aN: 1.66, x: 3.3, lean: 0.11 }), "out"],
+        [0.15, G({ x: 2 }), "out"],
+        [0.17, G({ x: 1, turn: 1, aN: 2.3, aF: 1.9, lean: -0.02, crouch: 2.7, lF: -0.36, sx: 0.97 }), "io"], // pull back, hips coil
+        [0.2, G({ turn: 0.62, aN: 1.55, aF: 2.2, x: 5, lean: 0.15, sx: 1.07, sy: 0.97, lN: 0.5, lF: -0.54 }), "snap"], // the power straight
+        [0.27, G({ turn: 0.62, aN: 1.58, aF: 2.15, x: 5.6, lean: 0.16, lN: 0.5, lF: -0.54 }), "out"],    // drive through, held
+        [0.34, G({ x: 2.5 }), "io"],
+        [r(1), { ...STANCE }, "io"],
+      ];
+    }
+    case "rush": { // four quick alternating punches walking forward, then a heavy straight off a deep step
+      const G = (x, o = {}) => ({ turn: 0.85, aN: 1.15, aF: 1.3, lean: 0.2, crouch: 2.5, lN: 0.5, lF: -0.45, x, ...o });
+      const N = (x) => ({ ...G(x), turn: 1, aN: 1.62, aF: 1.1, lean: 0.34, lN: 0.6, lF: -0.52, sx: 1.08, sy: 0.96 });
+      const F = (x) => ({ ...G(x), turn: 0.6, aN: 1.0, aF: 1.62, lean: 0.38, lN: 0.64, lF: -0.56, sx: 1.08, sy: 0.96 });
+      return [
+        [w(1), { ...STANCE }],
+        [w(0.4), G(-1, { crouch: 3, sy: 0.95 }), "out"],
+        [0, N(3), "snap"], [0.03, G(3), "out"],
+        [0.055, F(5), "snap"], [0.085, G(5), "out"],
+        [0.11, N(7), "snap"], [0.14, G(7), "out"],
+        [0.165, F(9), "snap"],
+        [0.2, G(8, { turn: 1, aN: 0.8, crouch: 4, sy: 0.92, lean: 0.05, x: 7 }), "out"],
+        [0.25, { ...G(14), turn: 0.95, aN: 1.6, aF: 0.9, lean: 0.5, lN: 0.85, lF: -0.75, sx: 1.18, sy: 0.92, crouch: 2 }, "snap"],
+        [0.33, { ...G(15), turn: 0.95, aN: 1.58, aF: 0.95, lean: 0.5, lN: 0.85, lF: -0.75, crouch: 2.5 }, "out"],
+        [r(1), { ...STANCE }, "io"],
+      ];
+    }
     case "shoryu": return [ // coiled to the floor, a burst forward, and a rising flame uppercut that leaves the ground
       [w(1), { ...STANCE }],
       [w(0.6), { turn: 1, aN: -0.4, aF: 1.0, lean: 0.45, crouch: 6, lN: 0.75, lF: -0.75, sy: 0.85, sx: 1.1, x: -2, head: 0.15 }, "out"],
