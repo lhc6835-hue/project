@@ -7,18 +7,20 @@ import { keys } from "./boss_rig.js";
 
 // which move conjures what. len: blade length (px), both: one in each hand
 export const WEAPON_BY_MOVE = {
-  // wind
-  "바람 칼날": { kind: "blade", len: 16, swing: "sweep" }, "질풍 돌진": { kind: "blade", len: 18, swing: "thrust" }, "난도질": { kind: "dagger", len: 10, both: true, swing: "xcross" }, "폭풍 회전": { kind: "blade", len: 22, arcs: true, swing: "spin" },
-  // fire
-  "불꽃 할퀴기": { kind: "claws", len: 6, both: true }, "불씨탄": { kind: "orb", r: 3 }, "화염 회전베기": { kind: "blade", len: 19, flame: true, swing: "spin" }, "업화 강타": { kind: "greatsword", len: 27, flame: true, swing: "overhead", two: true },
+  // wind: chakrams that fly out and come back
+  "바람 차크람": { kind: "chakram", tier: 1 }, "쌍풍 차크람": { kind: "chakram", tier: 2, both: true }, "폭풍 차크람": { kind: "chakram", tier: 3 },
+  "질풍 돌진": { kind: "chakram", tier: 2, both: true, held: true },
+  // fire: no weapon, just fists and feet wreathed in flame
+  "화염 연권": { kind: "fist", both: true, kicks: true }, "화염 선풍각": { kind: "fist", both: true, kicks: true }, "업화 승룡권": { kind: "fist", both: true, big: true },
+  "불씨탄": { kind: "orb", r: 3 },
   // water
   "물의 활": { kind: "bow", len: 15, tier: 1 }, "쌍류 화살": { kind: "bow", len: 18, tier: 2 }, "격류의 화살": { kind: "bow", len: 23, tier: 3, big: true }, "얼음창": { kind: "spear", len: 24, ramp: "ice" },
-  // earth
-  "바위 주먹": { kind: "gauntlet" }, "돌 던지기": { kind: "rock" }, "대지 망치": { kind: "hammer", len: 20, swing: "overhead", two: true }, "지진 내려찍기": { kind: "gauntlet", both: true },
-  // light
-  "빛의 일섬": { kind: "blade", len: 17, swing: "sweep" }, "성광 회전": { kind: "blade", len: 20, swing: "spin" }, "천상의 검": { kind: "greatsword", len: 29, swing: "overhead", two: true },
-  // dark
-  "그림자 할퀴기": { kind: "claws", len: 7, both: true }, "망령의 낫": { kind: "scythe", len: 24, swing: "reap", two: true }, "그림자 난무": { kind: "dagger", len: 11, both: true, swing: "xcross" },
+  // earth: stone gauntlets, then a hammer that keeps getting bigger
+  "바위 주먹": { kind: "gauntlet", both: true }, "돌 던지기": { kind: "rock" }, "대지 망치": { kind: "hammer", len: 20, swing: "hammer", two: true }, "거암 강타": { kind: "hammer", len: 25, big: true, swing: "leapslam", two: true },
+  // light: a lance of light
+  "빛의 창격": { kind: "lance", len: 24, tier: 1, swing: "pierce", two: true }, "성광 연창": { kind: "lance", len: 27, tier: 2, swing: "pierce3", two: true }, "천상의 창": { kind: "lance", len: 31, tier: 3, swing: "skydrive", two: true },
+  // dark: a reaper's blade, from a sickle to a great scythe
+  "그림자 낫": { kind: "scythe", len: 13, hook: 8, swing: "reap2" }, "망령의 낫": { kind: "scythe", len: 22, hook: 13, swing: "reapspin", two: true }, "사신의 낫": { kind: "scythe", len: 26, hook: 16, swing: "reaper", two: true, ghost: true },
   // code
   "Ctrl+X 잘라내기": { kind: "blade", len: 21, glitch: true, swing: "spin" },
 };
@@ -36,6 +38,33 @@ function hands(pose, x, y, flip) {
     out[name] = { x: rx + f * hx, y: ry + hy, dx: f * -Math.sin(prt.a), dy: Math.cos(prt.a) };
   }
   return out;
+}
+
+/** World position of the near foot and the direction the shin points. */
+function footN(pose, x, y, flip) {
+  const P = { ...NEUTRAL, ...pose }, f = flip ? -1 : 1, prt = layout(P).find((q) => q.name === "legN"), len = prt.spec.h - prt.spec.ay;
+  const [dx, dy] = rot(0, len, prt.a);
+  return { x: x + f * P.x + f * (prt.at[0] + dx) * P.sx, y: y + P.y - P.z + (prt.at[1] + dy) * P.sy, dx: f * -Math.sin(prt.a), dy: Math.cos(prt.a) };
+}
+
+/** Tongues of flame licking up from a point, with embers; k scales it. */
+function flameAt(p, x, y, R, glow, a, t, k, seed) {
+  const n = R.length;
+  for (let i = 0; i < 5; i++) {
+    const ph = (t * (3 + i * 0.7) + seed * 0.37 + i * 0.29) % 1, ox = Math.sin(i * 2.3 + seed) * 2.2 * k + Math.sin(t * 13 + i) * 0.8, h = (3 + (i % 3) * 1.6) * k;
+    for (let s = 0; s < h; s++) { const u = s / h, X = Math.round(x + ox * (1 - u * 0.5) + Math.sin(t * 20 + s + i) * 0.6 * u), Y = Math.round(y - s - ph * 2); p.put(X, Y, R[Math.max(0, Math.min(n - 1, Math.round((1 - u) * (n - 1))))], a * (1 - u * 0.6)); }
+  }
+  for (let i = 0; i < 2; i++) { const ph = (t * 1.7 + i * 0.5 + seed * 0.13) % 1; p.put(Math.round(x + Math.sin(i * 4 + t * 3 + seed) * 4 * k), Math.round(y - 4 * k - ph * 9 * k), R[n - 1], a * (1 - ph)); }
+  const G = Math.round(6 * k);
+  for (let j = -G; j <= G; j++) for (let i = -G; i <= G; i++) { const d = (i * i + j * j) / (G * G); if (d < 1) p.add(Math.round(x + i), Math.round(y - 1 + j), glow, 0.22 * a * (1 - d)); }
+}
+
+/** A tilted spinning chakram held at a point. */
+function heldChakram(p, x, y, R, glow, a, t, tier) {
+  const n = R.length, rr = [0, 3.5, 4.2, 5.5][tier], sp = t * 14;
+  for (let m = 0; m < 20; m++) { const an = m / 20 * Math.PI * 2; p.put(Math.round(x + Math.cos(an) * rr), Math.round(y + Math.sin(an) * rr * 0.55), Math.sin(an) < 0 ? R[n - 1] : R[n - 3], a); }
+  for (let b = 0; b < 4; b++) { const a0 = sp + b * Math.PI / 2; for (let s = 0; s <= 4; s++) { const u = s / 4, an = a0 + u * 0.7, r2 = rr + u * 2.5; p.put(Math.round(x + Math.cos(an) * r2), Math.round(y + Math.sin(an) * r2 * 0.55), R[n - 2], a); } }
+  for (let j = -6; j <= 6; j++) for (let i = -6; i <= 6; i++) { const d = (i * i + j * j) / 36; if (d < 1) p.add(Math.round(x + i), Math.round(y + j), glow, 0.14 * a * (1 - d)); }
 }
 
 /** A line with thickness, colour by distance from the core; light along it. */
@@ -88,6 +117,21 @@ export function drawWeapon(p, hero, pose, W, k, t) {
           const mid = [base[0] + d2[0] * len * 0.6, base[1] + d2[1] * len * 0.6], end = [mid[0] + (d2[0] + perp[0] * 0.5) * len * 0.5, mid[1] + (d2[1] + perp[1] * 0.5) * len * 0.5];
           stroke(p, base[0], base[1], mid[0], mid[1], 0.9, bright, aa, glow, 0.15);
           stroke(p, mid[0], mid[1], end[0], end[1], 0.5, bright, aa, glow, 0.15);
+        }
+        break;
+      }
+      case "chakram": {
+        // held until it is thrown: the near one at the release, the far one a beat later
+        const at = hero.act?.t ?? 1, gone = !W.held && at >= (arm === "armF" ? 0.06 : 0);
+        if (!gone) heldChakram(p, h.x + dir[0] * 2, h.y + dir[1] * 2, R, glow, aa, t + (arm === "armF" ? 0.3 : 0), W.tier ?? 1);
+        break;
+      }
+      case "fist": {
+        const fr = hero.ramps.main.map((c) => (typeof c === "number" ? c : hex(c)));
+        flameAt(p, h.x + dir[0] * 1.5, h.y + dir[1] * 1.5, fr, glow, aa, t, (W.big ? 1.35 : 1) * (0.85 + st * 0.15), arm === "armF" ? 3 : 0);
+        if (W.kicks && arm === "armN") {
+          const F = footN(pose, hero.x, hero.y - hero.z, flip);
+          if (F.dx * (flip ? -1 : 1) > 0.55) flameAt(p, F.x + F.dx * 2, F.y + F.dy * 2, fr, glow, aa, t, 1.1, 7);
         }
         break;
       }
@@ -166,13 +210,20 @@ export function drawWeapon(p, hero, pose, W, k, t) {
         // a stone shaft and a heavy head across its end
         const stone = (hero.ramps.stone ?? hero.ramps.main).map((c) => (typeof c === "number" ? c : hex(c)));
         stroke(p, h.x - dir[0] * 3, h.y - dir[1] * 3, tip[0], tip[1], 1.1, stone.slice(2, 6), aa);
-        const hw = 8 * grow, hl = 5 * grow;
+        const hg = 1 + (st - 1) * 0.08, hw = (W.big ? 7.5 : 6) * hg, hl = (W.big ? 5 : 4) * hg;
         for (let j = -hl; j <= hl; j++) for (let i = -hw; i <= hw; i++) {
           const x = tip[0] + perp[0] * i + dir[0] * j, y = tip[1] + perp[1] * i + dir[1] * j;
+          if (Math.abs(i) > hw - 1.2 && Math.abs(j) > hl - 1.2) continue;
           const edge = Math.abs(i) > hw - 1 || Math.abs(j) > hl - 1;
           p.put(Math.round(x), Math.round(y), edge ? stone[1] : (i + j < 0 ? stone[5] : stone[3]), aa);
         }
         stroke(p, tip[0] - perp[0] * hw, tip[1] - perp[1] * hw, tip[0] + perp[0] * hw, tip[1] + perp[1] * hw, 0.4, [hero.accent[4]], aa, glow, 0.25);
+        if (W.big) for (const sg of [-1, 1]) {
+          // crystal spikes jutting from both faces, glowing veins of the element
+          const bx = tip[0] + perp[0] * sg * hw, by = tip[1] + perp[1] * sg * hw;
+          stroke(p, bx, by, bx + perp[0] * sg * 4 + dir[0] * 2, by + perp[1] * sg * 4 + dir[1] * 2, (u) => 1.6 * (1 - u), [hero.accent[2], hero.accent[3], hero.accent[4]], aa, glow, 0.3);
+          stroke(p, tip[0] + perp[0] * sg * 3 - dir[0] * hl * 0.6, tip[1] + perp[1] * sg * 3 - dir[1] * hl * 0.6, tip[0] + perp[0] * sg * 3 + dir[0] * hl * 0.6, tip[1] + perp[1] * sg * 3 + dir[1] * hl * 0.6, 0.35, [hero.accent[4]], aa, glow, 0.3);
+        }
         break;
       }
       case "gauntlet": {
@@ -295,6 +346,92 @@ function swingKeys(kind, W, R) {
       [0.16, S2({ th: 0.15, psi: 0.6, turn: 0.7, lean: 0.4, x: 2, crouch: 3, lN: 0.65, lF: -0.6 }), "out"],
       [r(1), S2({ th: 0.4, psi: 0.3 }), "io"],
     ];
+    // ---- the lance. arm: the forearm angle (0 down, π/2 forward), fa: how far it follows the shaft instead
+    case "pierce": return [ // pulled to the hip, then driven out at full stretch in one lunge
+      [w(1), S2({ th: 0.15, psi: 0.1, arm: 0.9, fa: 0 })],
+      [w(0.45), S2({ th: 0.06, psi: 0.05, arm: 0.15, fa: 0, turn: 1, lean: -0.22, x: -3, crouch: 3, lN: 0.5, lF: -0.62, sx: 0.95, head: 0.05 }), "out"],
+      [0, S2({ th: -0.02, psi: 0, arm: 1.6, fa: 0, turn: 1, lean: 0.52, x: 6, crouch: 2, lN: 0.88, lF: -0.82, sx: 1.17, sy: 0.92 }), "snap"],
+      [0.07, S2({ th: 0, psi: 0, arm: 1.62, fa: 0, turn: 1, lean: 0.55, x: 7, crouch: 2.5, lN: 0.88, lF: -0.82, sx: 1.08 }), "out"],
+      [r(0.6), S2({ th: 0.1, psi: 0.05, arm: 1.0, fa: 0, turn: 0.95, lean: 0.25, x: 4, crouch: 1.5 }), "back"],
+      [r(1), S2({ th: 0.15, psi: 0.1, arm: 0.9, fa: 0 }), "io"],
+    ];
+    case "pierce3": { // three thrusts, each further forward and quicker, then the shaft whipped across the front
+      const ext = (x, th, k = 1) => S2({ th, psi: 0, arm: 1.6, fa: 0, turn: 1, lean: 0.5, x, crouch: 2, lN: 0.85, lF: -0.8, sx: 1 + 0.12 * k, sy: 0.93 });
+      const ret = (x) => S2({ th: 0.08, psi: 0.04, arm: 0.55, fa: 0, turn: 1, lean: 0.22, x, crouch: 2.5, lN: 0.7, lF: -0.7, sx: 0.98 });
+      return [
+        [w(1), S2({ th: 0.15, psi: 0.1, arm: 0.9, fa: 0 })],
+        [w(0.5), S2({ th: 0.06, psi: 0.05, arm: 0.15, fa: 0, turn: 1, lean: -0.2, x: -3, crouch: 3, lN: 0.5, lF: -0.62, sx: 0.95 }), "out"],
+        [0, ext(5, -0.02)], [0.035, ret(4), "out"],
+        [0.07, ext(8, -0.12, 1.1), "snap"], [0.1, ret(7), "out"],
+        [0.13, ext(11, 0.06, 1.4), "snap"],
+        [0.19, S2({ th: 0.05, psi: -2.3, arm: 0, fa: 1, turn: 1, lean: -0.12, x: 9, crouch: 3, lN: 0.5, lF: -0.6, sy: 0.95 }), "out"],
+        [0.25, S2({ th: 0.12, psi: 0.4, arm: 0, fa: 1, turn: 0.6, lean: 0.42, x: 12, crouch: 2, lN: 0.82, lF: -0.7, sx: 1.1 }), "in"],
+        [0.31, S2({ th: 0.25, psi: 1.7, arm: 0, fa: 1, turn: 0.45, lean: 0.36, x: 12, crouch: 3.5 }), "out"],
+        [r(1), S2({ th: 0.15, psi: 0.1, arm: 0.9, fa: 0 }), "io"],
+      ];
+    }
+    case "skydrive": return [ // coiled low and back while light gathers, then a blinding charge straight through
+      [w(1), S2({ th: 0.15, psi: 0.1, arm: 0.9, fa: 0 })],
+      [w(0.7), S2({ th: 0.12, psi: 0.05, arm: 0.1, fa: 0, turn: 1, lean: -0.3, x: -4, crouch: 5, lN: 0.62, lF: -0.82, sx: 0.94, sy: 1.02, head: 0.1 }), "out"],
+      [w(0.1), S2({ th: 0.1, psi: 0.05, arm: 0.05, fa: 0, turn: 1, lean: -0.36, x: -5, crouch: 6, lN: 0.65, lF: -0.85, sx: 0.92, sy: 1.04, head: 0.12 }), "io"],
+      [0, S2({ th: 0, psi: 0, arm: 1.6, fa: 0, turn: 1, lean: 0.68, x: 4, crouch: 2, lN: 1.02, lF: -1.02, sx: 1.26, sy: 0.88 }), "snap"],
+      [0.1, S2({ th: 0, psi: 0, arm: 1.6, fa: 0, turn: 1, lean: 0.62, x: 5, crouch: 2, lN: 1.0, lF: -1.0, sx: 1.16, sy: 0.9 }), "lin"],
+      [0.17, S2({ th: 0.05, psi: 0.05, arm: 1.5, fa: 0, turn: 1, lean: 0.42, x: 6, crouch: 5, lN: 0.85, lF: -0.8, sx: 1.05, sy: 0.9 }), "out"],
+      [r(0.7), S2({ th: 0.15, psi: 0.1, arm: 1.0, fa: 0, lean: 0.2, x: 4, crouch: 2 }), "back"],
+      [r(1), S2({ th: 0.15, psi: 0.1, arm: 0.9, fa: 0 }), "io"],
+    ];
+    // ---- the hammer
+    case "hammer": return [ // dragged low behind, heaved up over the head with a hop, brought down and left in the ground
+      [w(1), S2({ th: 0.4, psi: 0.15 })],
+      [w(0.62), S2({ th: 0.9, psi: -2.4, turn: 1, lean: 0.22, crouch: 4, x: -1, lN: 0.45, lF: -0.5, sy: 0.9, sx: 1.05 }), "out"],
+      [w(0.15), S2({ th: -2.25, psi: -0.45, turn: 0.95, lean: -0.34, x: -1, z: 5, lN: 0.55, lF: -0.15, sy: 1.1, sx: 0.93, head: -0.3 }), "out"],
+      [0, S2({ th: -0.5, psi: 0.1, turn: 0.75, lean: 0.4, x: 3, z: 3, lN: 0.7, lF: -0.5, sx: 1.06 }), "in"],
+      [0.06, S2({ th: 1.15, psi: 0.3, turn: 0.6, lean: 0.6, x: 5, crouch: 6, lN: 0.85, lF: -0.7, sx: 1.14, sy: 0.86 }), "lin"],
+      [0.22, S2({ th: 1.3, psi: 0.35, turn: 0.6, lean: 0.55, x: 5, crouch: 5, lN: 0.85, lF: -0.7, sy: 0.9 }), "out"],
+      [r(1), S2({ th: 0.5, psi: 0.2 }), "io"],
+    ];
+    case "leapslam": return [ // a crouch, a huge leap with the hammer wound behind the head, and the whole weight brought down
+      [w(1), S2({ th: 0.5, psi: 0.2 })],
+      [w(0.78), S2({ th: 1.0, psi: -2.3, turn: 1, lean: 0.32, crouch: 6, x: -2, lN: 0.6, lF: -0.6, sy: 0.85, sx: 1.08 }), "out"],
+      [w(0.45), S2({ th: -1.6, psi: -0.6, turn: 0.95, lean: -0.3, z: 17, lN: 0.9, lF: 0.3, sy: 1.12, sx: 0.92, head: -0.3 }), "out"],
+      [w(0.12), S2({ th: -2.55, psi: -0.5, turn: 0.95, lean: -0.44, z: 21, lN: 0.8, lF: 0.4, sy: 1.08, head: -0.36 }), "io"],
+      [0, S2({ th: -0.4, psi: 0.15, turn: 0.8, lean: 0.45, z: 8, lN: 0.9, lF: -0.3, sx: 1.05 }), "in"],
+      [0.05, S2({ th: 1.25, psi: 0.3, turn: 0.65, lean: 0.66, crouch: 7, lN: 0.92, lF: -0.82, sx: 1.18, sy: 0.84, x: 4 }), "lin"],
+      [0.26, S2({ th: 1.35, psi: 0.35, turn: 0.65, lean: 0.56, crouch: 6, lN: 0.92, lF: -0.82, sy: 0.88, x: 4 }), "out"],
+      [r(1), S2({ th: 0.5, psi: 0.2 }), "io"],
+    ];
+    // ---- the reaper
+    case "reap2": return [ // a sickle hooked across the front, then ripped straight back the other way
+      [w(1), S2({ th: 0.4, psi: 0.3 })],
+      [w(0.5), S2({ th: -0.6, psi: -2.4, turn: 1, lean: -0.18, x: -2, crouch: 2, lN: 0.3, lF: -0.5, sy: 0.96, head: -0.1 }), "out"],
+      [0, S2({ th: 0.2, psi: -0.3, turn: 0.8, lean: 0.3, x: 3, lN: 0.62, lF: -0.48, sx: 1.06 }), "in"],
+      [0.05, S2({ th: 0.35, psi: 1.4, turn: 0.5, lean: 0.36, x: 5, crouch: 2, lN: 0.66, lF: -0.5, sx: 1.08 }), "lin"],
+      [0.1, S2({ th: 0.1, psi: 2.1, turn: 0.45, lean: 0.2, x: 6, crouch: 2.5 }), "out"],
+      [0.15, S2({ th: 0.15, psi: 0.4, turn: 0.85, lean: 0.4, x: 8, crouch: 2, lN: 0.7, lF: -0.55, sx: 1.08 }), "in"],
+      [0.2, S2({ th: 0.3, psi: -1.7, turn: 1, lean: 0.3, x: 9, crouch: 3 }), "lin"],
+      [r(1), S2({ th: 0.4, psi: 0.3 }), "io"],
+    ];
+    case "reapspin": return [ // the great scythe reaps across the front and the body follows it all the way round
+      [w(1), S2({ th: 0.5, psi: 0.3 })],
+      [w(0.4), S2({ th: 0.25, psi: -2.8, turn: 1, lean: -0.12, x: -2, crouch: 3, lN: 0.3, lF: -0.55, sy: 0.94 }), "out"],
+      [0, S2({ th: 0.35, psi: -0.6, turn: 0.75, lean: 0.3, x: 3, crouch: 4, lN: 0.65, lF: -0.5, sx: 1.08 }), "in"],
+      [0.08, S2({ th: 0.4, psi: 1.6, turn: 0.4, lean: 0.36, x: 6, crouch: 5, lN: 0.7, lF: -0.55, sx: 1.08 }), "lin"],
+      [0.24, S2({ th: 0.3, psi: Math.PI * 2 - 0.6, turn: 0.8, lean: 0.2, x: 7, crouch: 3, lN: 0.5, lF: -0.5, z: 3 }), "lin"],
+      [0.32, S2({ th: 0.42, psi: Math.PI * 2 + 1.4, turn: 0.45, lean: 0.36, x: 8, crouch: 5, lN: 0.7, lF: -0.55 }), "out"],
+      [r(1), S2({ th: 0.5, psi: Math.PI * 2 + 0.3 }), "io"],
+    ];
+    case "reaper": return [ // leaping overhead reap that sends a crescent out, then a low reap back across
+      [w(1), S2({ th: 0.5, psi: 0.3 })],
+      [w(0.6), S2({ th: 0.6, psi: -2.6, turn: 1, lean: 0.2, crouch: 5, x: -2, lN: 0.5, lF: -0.6, sy: 0.88, sx: 1.06 }), "out"],
+      [w(0.2), S2({ th: -2.3, psi: -0.4, turn: 0.95, lean: -0.36, z: 10, lN: 0.7, lF: 0.2, sy: 1.1, sx: 0.93, head: -0.3 }), "out"],
+      [w(0.04), S2({ th: -2.5, psi: -0.4, turn: 0.95, lean: -0.42, z: 11, lN: 0.72, lF: 0.25, sy: 1.08, head: -0.32 }), "io"],
+      [0, S2({ th: -0.3, psi: 0.1, turn: 0.8, lean: 0.4, z: 6, lN: 0.7, lF: -0.4, sx: 1.06 }), "in"],
+      [0.07, S2({ th: 1.2, psi: 0.35, turn: 0.65, lean: 0.6, crouch: 6, lN: 0.85, lF: -0.7, sx: 1.14, sy: 0.86, x: 4 }), "lin"],
+      [0.16, S2({ th: 0.3, psi: -2.5, turn: 1, lean: 0.1, crouch: 4, x: 4, lN: 0.6, lF: -0.6 }), "out"],
+      [0.22, S2({ th: 0.35, psi: 0, turn: 0.7, lean: 0.42, crouch: 4, x: 7, lN: 0.75, lF: -0.6, sx: 1.1 }), "in"],
+      [0.3, S2({ th: 0.4, psi: 1.8, turn: 0.4, lean: 0.38, crouch: 5, x: 8 }), "lin"],
+      [r(1), S2({ th: 0.5, psi: 0.4 }), "io"],
+    ];
     case "xcross": { // two blades crossing back and forth, a step forward with each cut
       const k = [[w(1), S2({ th: 0.3, psi: 0.3, th2: 0.3, psi2: -0.3 })], [w(0.3), S2({ th: 0.1, psi: -2.2, th2: 0.1, psi2: 2.0, crouch: 3, lN: 0.4, lF: -0.45, sy: 0.93 }), "out"]];
       [0, 0.055, 0.11, 0.165, 0.22, 0.275].forEach((t0, i) => {
@@ -325,13 +462,49 @@ export function swingPose(W, def, t) {
   const K = fitKeys(W.swing, def.windup ?? 0.15, def.recover ?? 0.3), q = keys(K, t);
   const b1 = bladeDir(q.th, q.psi), blades = [{ d: b1, arm: "armN" }];
   const aim = (d) => Math.atan2(d.x, d.y);   // rig arm angle: 0 down, +π/2 forward
-  const pose = { lN: q.lN, lF: q.lF, lean: q.lean, crouch: q.crouch, x: q.x, sx: q.sx, sy: q.sy, head: q.head, turn: q.turn, z: 0 };
-  if (W.swing === "spin") pose.turn = 0.55 + 0.4 * Math.cos(q.psi);        // the torso turns with the blade
+  const pose = { lN: q.lN, lF: q.lF, lean: q.lean, crouch: q.crouch, x: q.x, sx: q.sx, sy: q.sy, head: q.head, turn: q.turn, z: q.z ?? 0 };
+  if (pose.z > 1) pose.plant = false;
+  if (W.swing === "spin" || (W.swing === "reapspin" && t > 0.02)) pose.turn = 0.55 + 0.4 * Math.cos(q.psi); // the torso turns with the blade
   pose.aN = aim(b1);
+  // a lance is held along the forearm for sweeps but levelled from the hip for thrusts
+  if (q.arm !== undefined) pose.aN = q.arm + (pose.aN - q.arm) * (q.fa ?? 0);
   if (W.both) { const b2 = bladeDir(q.th2 ?? q.th, q.psi2 ?? -q.psi); blades.push({ d: b2, arm: "armF" }); pose.aF = aim(b2); }
   else if (W.two) pose.aF = pose.aN - 0.18;                                 // two-handed: the other hand on the grip
   else pose.aF = 0.4 - 0.3 * Math.sin(q.psi);                                // free hand balances
   return { pose, blades };
+}
+
+/** A lance of light: a long shaft through the hand, a leaf-shaped head, wings and a halo as it grows. */
+function drawLance(p, h, dx, dy, px, py, len, proj, tier, R, glow, a, t, hero) {
+  const n = R.length, bright = R.slice(Math.floor(n / 3)), back = len * 0.42, L = len * (0.55 + 0.45 * proj);
+  const tip = [h.x + dx * L, h.y + dy * L];
+  stroke(p, h.x - dx * back, h.y - dy * back, tip[0], tip[1], 0.7 + tier * 0.12, bright.slice(0, 4), a, glow, 0.12);
+  // pommel and the bands of light around the grip
+  stroke(p, h.x - dx * back, h.y - dy * back, h.x - dx * (back - 2), h.y - dy * (back - 2), 1.2, [R[n - 1]], a);
+  const hl = 5 + tier * 1.6, hw = 1.8 + tier * 0.45;
+  for (let s = 0; s <= hl * 2; s++) {
+    // leaf head: widest a third of the way up, sharp at the point
+    const u = s / (hl * 2), wdt = hw * Math.sin(Math.min(1, u * 1.6) * Math.PI) * (1 - u * 0.35), cx = tip[0] + dx * u * hl, cy = tip[1] + dy * u * hl;
+    for (let q = -Math.ceil(wdt); q <= Math.ceil(wdt); q++) if (Math.abs(q) <= wdt + 0.2) p.put(Math.round(cx + px * q), Math.round(cy + py * q), Math.abs(q) < wdt * 0.4 ? R[n - 1] : R[n - 2], a);
+  }
+  const head = [tip[0] + dx * hl * 0.3, tip[1] + dy * hl * 0.3];
+  if (tier >= 2) for (const sg of [-1, 1]) {
+    // little wings of light swept back from the base of the head
+    for (let f2 = 0; f2 < tier; f2++) { const L2 = 5 + f2 * 1.5; stroke(p, tip[0] + px * sg * 1.5, tip[1] + py * sg * 1.5, tip[0] + px * sg * (3 + f2 * 1.2) - dx * L2, tip[1] + py * sg * (3 + f2 * 1.2) - dy * L2, (u) => 0.9 * (1 - u), [R[n - 2], R[n - 1]], a, glow, 0.2); }
+  }
+  if (tier === 3) {
+    // a halo ring around the head and sparks streaming off the point
+    for (let m = 0; m < 16; m++) { const an = m / 16 * Math.PI * 2 + t * 2; p.put(Math.round(head[0] + Math.cos(an) * 2.2 * (dx * dx + 0.4) + px * Math.sin(an) * 5), Math.round(head[1] + Math.cos(an) * 2.2 * dy + py * Math.sin(an) * 5), R[n - 1], a * 0.8); }
+    for (let i = 0; i < 3; i++) { const ph = (t * 3 + i / 3) % 1; p.put(Math.round(head[0] + dx * (hl + ph * 10)), Math.round(head[1] + dy * (hl + ph * 10) + Math.sin(i * 3 + t * 9) * 1.5), hex("#ffffff"), a * (1 - ph)); }
+  }
+  const G = 5 + tier * 2;
+  for (let j = -G; j <= G; j++) for (let i = -G; i <= G; i++) { const d = (i * i + j * j) / (G * G); if (d < 1) p.add(Math.round(head[0] + i), Math.round(head[1] + j), glow, (0.12 + tier * 0.05) * a * (1 - d)); }
+  // charging (the wind-up of the great charge): light gathering into the point
+  const act = hero.act;
+  if (tier === 3 && act && act.t < 0) for (let i = 0; i < 8; i++) {
+    const ph = (t * 3 + i / 8) % 1, an = i * 2.4 + t * 6, rr = (1 - ph) * 14;
+    p.put(Math.round(head[0] + Math.cos(an) * rr), Math.round(head[1] + Math.sin(an) * rr * 0.7), R[n - 1], a * ph); p.add(Math.round(head[0] + Math.cos(an) * rr), Math.round(head[1] + Math.sin(an) * rr * 0.7), glow, 0.3 * a * ph);
+  }
 }
 
 /** Draw swung blades for the given layer ("back": blades behind the body, "front": the rest). */
@@ -349,14 +522,24 @@ export function drawSwung(p, hero, pose, W, k, t, layer) {
     const wide = (W.kind === "greatsword" ? 2.4 : W.kind === "dagger" ? 1.1 : W.kind === "scythe" ? 0.9 : 1.6) * grow;
     const proj = Math.hypot(B.d.x, B.d.y); // shorter when pointing at the viewer
     if (W.kind === "hammer") { drawWeapon(p, hero, pose, { ...W, swing: null }, k, t); continue; }
-    // guard, then blade
     const px = -dy, py = dx;
+    if (W.kind === "lance") { drawLance(p, h, dx, dy, px, py, len, proj, W.tier ?? 1, R, glow, aa, t, hero); continue; }
+    // guard, then blade
     stroke(p, h.x - px * 3, h.y - py * 3, h.x + px * 3, h.y + py * 3, 0.8, bright, aa);
     stroke(p, h.x + dx * 1.5, h.y + dy * 1.5, tip[0], tip[1], (u) => wide * (0.6 + 0.4 * proj) * (1 - u * 0.75) + (W.flame ? Math.abs(Math.sin(u * 9 + t * 20)) * 0.8 : 0), bright, aa, glow, hero.stage >= 3 ? 0.3 : 0.18);
     if (W.kind === "scythe") {
       // the curved head, hooking back toward the viewer side
       let prev = tip;
-      for (let s = 1; s <= 10; s++) { const u = s / 10, ang = u * 1.7; const cx2 = tip[0] + (px * Math.sin(ang) - dx * (1 - Math.cos(ang))) * 13 * grow, cy2 = tip[1] + (py * Math.sin(ang) - dy * (1 - Math.cos(ang))) * 13 * grow; stroke(p, prev[0], prev[1], cx2, cy2, 2.2 * (1 - u * 0.75), bright, aa, glow, 0.3); prev = [cx2, cy2]; }
+      const hk = (W.hook ?? 13) * grow;
+      const curve = (u, sc) => { const ang = u * 1.7; return [tip[0] + (px * Math.sin(ang) - dx * (1 - Math.cos(ang))) * hk * sc, tip[1] + (py * Math.sin(ang) - dy * (1 - Math.cos(ang))) * hk * sc]; };
+      for (let s = 1; s <= 10; s++) { const u = s / 10, q = curve(u, 1); stroke(p, prev[0], prev[1], q[0], q[1], (hk / 6) * (1 - u * 0.75), bright, aa, glow, 0.3); prev = q; }
+      // a bright cutting edge along the inside of the curve
+      let pe = tip; for (let s = 1; s <= 10; s++) { const q = curve(s / 10, 0.86); stroke(p, pe[0], pe[1], q[0], q[1], 0.35, [R[n - 1]], aa); pe = q; }
+      if (W.ghost) {
+        // the reaper's blade trails a second, ghostly blade and wisps of shadow
+        let pg = tip; for (let s = 1; s <= 10; s++) { const q = curve(s / 10, 1.25); p.blendPx(Math.round(q[0]), Math.round(q[1] + Math.sin(t * 12 + s) * 0.8), R[n - 2], aa * 0.5 * (1 - s / 12)); pg = q; }
+        for (let i = 0; i < 3; i++) { const ph = (t * 1.8 + i / 3) % 1, q = curve(0.3 + i * 0.25, 1); p.blendPx(Math.round(q[0]), Math.round(q[1] - ph * 8), R[2], aa * 0.7 * (1 - ph)); }
+      }
     }
     if (W.arcs || hero.stage >= 3) for (let i = 0; i < 2; i++) { const u0 = Math.random(), u1 = Math.min(1, u0 + 0.25), j = () => (Math.random() - 0.5) * 6; stroke(p, h.x + dx * len * u0 + j(), h.y + dy * len * u0 + j(), h.x + dx * len * u1 + j(), h.y + dy * len * u1 + j(), 0.4, [R[n - 1]], aa * 0.8); }
     if (W.glitch && Math.random() < 0.5) { const u = Math.random(), gx = h.x + dx * len * u, gy = h.y + dy * len * u; for (let i = 0; i < 4; i++) p.put(Math.round(gx + px * (3 + i)), Math.round(gy + py * (3 + i)), R[n - 2], aa); }
@@ -372,7 +555,8 @@ export function trackSwing(hero, pose, W, dt) {
   if (!hero.blades) return;
   hero.blades.forEach((B, i) => {
     const h = H[B.arm], len = (W.len ?? 14) * grow * (B.arm === "armF" ? 0.9 : 1);
-    hero.swept.push({ i, g: [h.x + f * B.d.x * len * 0.3, h.y + B.d.y * len * 0.3], tp: [h.x + f * B.d.x * len * 1.15, h.y + B.d.y * len * 1.15], z: B.d.z, t: 0.11, life: 0.11 });
+    const g0 = W.kind === "lance" ? 0.7 : W.kind === "hammer" ? 0.75 : 0.3, t1 = W.kind === "lance" ? 1.35 : W.kind === "scythe" ? 1.4 : 1.15;
+    hero.swept.push({ i, g: [h.x + f * B.d.x * len * g0, h.y + B.d.y * len * g0], tp: [h.x + f * B.d.x * len * t1, h.y + B.d.y * len * t1], z: B.d.z, t: 0.11, life: 0.11 });
   });
 }
 

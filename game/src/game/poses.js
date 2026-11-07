@@ -271,6 +271,79 @@ export function archetype(name, W = 0.2, R = 0.3) {
       [0.24, { turn: 1, aN: 1.52, aF: -2.1, lean: -0.1, lN: 0.62, lF: -0.62, crouch: 3.5, x: -8.5, sx: 1.05, sy: 0.95 }, "out"],
       [r(1), { ...STANCE }, "io"],
     ];
+    // ---- chakram throws. The body coils away from the target, holds the coil a beat (anticipation), then
+    // unwinds hip-first so the throwing arm cracks out last, and is carried through past the release.
+    case "chuck": return [ // a backhand sidearm throw
+      [w(1), { ...STANCE }],
+      [w(0.55), { turn: 1, aN: -1.3, aF: 0.9, lean: -0.12, lN: 0.3, lF: -0.5, crouch: 3, x: -2, sx: 0.96, sy: 1.02, head: 0.05 }, "out"],
+      [w(0.12), { turn: 1, aN: -1.55, aF: 1.1, lean: -0.2, lN: 0.36, lF: -0.56, crouch: 3.5, x: -3, sx: 0.95, sy: 1.03, head: 0.06 }, "io"],
+      [0, { turn: 0.7, aN: 1.75, aF: -0.6, lean: 0.38, lN: 0.7, lF: -0.55, crouch: 1, x: 4, sx: 1.1, sy: 0.94 }, "snap"],
+      [0.07, { turn: 0.6, aN: 2.25, aF: -0.9, lean: 0.42, lN: 0.72, lF: -0.58, crouch: 2.5, x: 6, sx: 1.04 }, "out"],
+      [r(0.65), { turn: 0.85, aN: 1.4, aF: 0.2, lean: 0.2, lN: 0.5, lF: -0.45, crouch: 1.5, x: 4 }, "back"],
+      [r(1), { ...STANCE }, "io"],
+    ];
+    case "chuck2": return [ // both arms swept back like wings, then flung out one after the other
+      [w(1), { ...STANCE }],
+      [w(0.6), { turn: 0.95, aN: -1.25, aF: -1.05, lean: 0.2, crouch: 4, lN: 0.45, lF: -0.5, sy: 0.92, sx: 1.05, head: 0.12, x: -1 }, "out"],
+      [w(0.1), { turn: 0.95, aN: -1.45, aF: -1.25, lean: 0.24, crouch: 4.5, lN: 0.48, lF: -0.52, sy: 0.91, sx: 1.06, head: 0.14, x: -1.5 }, "io"],
+      [0, { turn: 0.85, aN: 1.9, aF: -1.3, lean: 0.36, x: 3, lN: 0.66, lF: -0.5, sx: 1.08, sy: 0.95, crouch: 1 }, "snap"],
+      [0.06, { turn: 0.7, aN: 2.3, aF: 1.6, lean: 0.4, x: 6, lN: 0.7, lF: -0.55, crouch: 2, sx: 1.08, sy: 0.95 }, "snap"],
+      [0.14, { turn: 0.7, aN: 2.0, aF: 1.9, lean: 0.36, x: 7, crouch: 3, lN: 0.7, lF: -0.55 }, "out"],
+      [r(0.7), { turn: 0.85, aN: 1.2, aF: 0.9, lean: 0.2, x: 5, crouch: 1.5, lN: 0.5, lF: -0.45 }, "back"],
+      [r(1), { ...STANCE }, "io"],
+    ];
+    case "chuck3": return [ // a hop with the storm chakram wound far behind the head, hurled down on landing
+      [w(1), { ...STANCE }],
+      [w(0.78), { turn: 1, aN: -0.9, aF: 1.6, lean: 0.25, crouch: 5, lN: 0.5, lF: -0.55, sy: 0.88, sx: 1.07 }, "out"],
+      [w(0.5), { turn: 1, aN: 3.7, aF: 1.2, lean: -0.36, z: 7, plant: false, lN: 0.6, lF: 0.2, sy: 1.08, sx: 0.94, head: -0.2, x: -2 }, "out"],
+      [w(0.1), { turn: 1, aN: 3.95, aF: 1.4, lean: -0.44, z: 9, plant: false, lN: 0.65, lF: 0.25, sy: 1.1, sx: 0.93, head: -0.26, x: -3 }, "io"],
+      [0, { turn: 0.8, aN: 1.3, aF: -0.8, lean: 0.56, z: 3, plant: false, lN: 0.8, lF: -0.6, crouch: 2, x: 5, sx: 1.13, sy: 0.9 }, "snap"],
+      [0.08, { turn: 0.75, aN: 0.6, aF: -1.0, lean: 0.6, lN: 0.82, lF: -0.7, crouch: 5, x: 7, sx: 1.08, sy: 0.88 }, "out"],
+      [r(0.65), { turn: 0.85, aN: 1.0, aF: 0.2, lean: 0.3, crouch: 2.5, x: 6, lN: 0.6, lF: -0.5 }, "back"],
+      [r(1), { ...STANCE }, "io"],
+    ];
+    // ---- fire: fists and feet. Short wind-ups and each strike snapping in faster than the last.
+    case "jab3": return [ // jab, cross off a hip turn, then a front snap kick
+      [w(1), { ...STANCE }],
+      [w(0.5), { turn: 0.9, aN: 1.0, aF: 1.1, lean: 0.1, crouch: 2.5, lN: 0.45, lF: -0.45, sy: 0.95, x: -1 }, "out"],
+      [0, { turn: 0.95, aN: 1.62, aF: 0.9, lean: 0.3, lN: 0.6, lF: -0.5, x: 4, sx: 1.08, crouch: 1 }, "snap"],
+      [0.04, { turn: 0.9, aN: 1.1, aF: 0.9, lean: 0.22, lN: 0.6, lF: -0.5, x: 4, crouch: 1.5 }, "out"],
+      [0.08, { turn: 0.6, aN: 0.9, aF: 1.65, lean: 0.4, lN: 0.66, lF: -0.6, x: 8, sx: 1.1, crouch: 1 }, "snap"],
+      [0.12, { turn: 0.75, aN: 1.1, aF: 1.0, lean: 0.2, lN: 0.5, lF: -0.5, x: 8, crouch: 2, sy: 0.95 }, "out"],
+      [0.17, { turn: 1, aN: 0.6, aF: 1.2, lean: -0.3, lN: 1.62, lF: -0.25, x: 11, z: 2, plant: false, sx: 1.06, head: -0.05 }, "snap"],
+      [0.23, { turn: 1, aN: 0.7, aF: 1.1, lean: -0.25, lN: 1.45, lF: -0.25, x: 12, z: 1, plant: false }, "out"],
+      [r(1), { ...STANCE }, "io"],
+    ];
+    case "whirlkick": return [ // a sunk crouch, then a leaping tornado kick with the leg out like a blade
+      [w(1), { ...STANCE }],
+      [w(0.5), { aN: -0.6, aF: 1.6, lean: 0.25, crouch: 5, lN: 0.6, lF: -0.6, sy: 0.88, sx: 1.07 }, "out"],
+      [0, { aN: 2.4, aF: 2.0, lean: -0.2, z: 9, plant: false, lN: 1.55, lF: -0.4, sx: 1.05, spin: 1 }, "snap"],
+      [0.13, { aN: 2.2, aF: 2.2, lean: -0.25, z: 12, plant: false, lN: 1.6, lF: -0.3, spin: 1 }, "lin"],
+      [0.26, { aN: 1.8, aF: 1.6, lean: -0.1, z: 7, plant: false, lN: 1.4, lF: -0.4, spin: 1 }, "lin"],
+      [0.32, { aN: 0.8, aF: 0.9, lean: 0.3, crouch: 4, lN: 0.6, lF: -0.55, sy: 0.9, sx: 1.08 }, "in"],
+      [r(1), { ...STANCE }, "io"],
+    ];
+    case "shoryu": return [ // coiled to the floor, a burst forward, and a rising flame uppercut that leaves the ground
+      [w(1), { ...STANCE }],
+      [w(0.6), { turn: 1, aN: -0.4, aF: 1.0, lean: 0.45, crouch: 6, lN: 0.75, lF: -0.75, sy: 0.85, sx: 1.1, x: -2, head: 0.15 }, "out"],
+      [w(0.1), { turn: 1, aN: -0.7, aF: 1.2, lean: 0.55, crouch: 6.5, lN: 0.8, lF: -0.8, sy: 0.84, sx: 1.12, head: 0.2 }, "io"],
+      [0, { turn: 0.8, aN: 2.6, aF: 0.2, lean: 0.1, z: 6, plant: false, lN: 0.9, lF: -0.6, x: 3, sy: 1.1, sx: 0.94, head: -0.2 }, "snap"],
+      [0.08, { turn: 0.7, aN: 3.15, aF: -0.3, lean: -0.2, z: 16, plant: false, lN: 1.1, lF: -0.2, x: 4, sy: 1.12, sx: 0.92, head: -0.35 }, "out"],
+      [0.2, { turn: 0.75, aN: 3.05, aF: -0.2, lean: -0.15, z: 17, plant: false, lN: 1.0, lF: -0.25, x: 4, sy: 1.05, head: -0.3 }, "io"],
+      [0.34, { turn: 0.85, aN: 1.0, aF: 0.8, lean: 0.3, crouch: 5, lN: 0.7, lF: -0.6, x: 4, sy: 0.88, sx: 1.1 }, "in"],
+      [r(1), { ...STANCE }, "io"],
+    ];
+    // ---- earth: a stone jab, then the far fist driven up from the floor
+    case "onetwo": return [
+      [w(1), { ...STANCE }],
+      [w(0.5), { turn: 0.9, aN: 0.9, aF: 1.0, lean: 0.12, crouch: 3, lN: 0.45, lF: -0.45, sy: 0.93, sx: 1.04 }, "out"],
+      [0, { turn: 0.95, aN: 1.65, aF: 0.8, lean: 0.34, lN: 0.62, lF: -0.5, x: 4, sx: 1.1, sy: 0.95, crouch: 1.5 }, "snap"],
+      [0.06, { turn: 0.85, aN: 1.0, aF: -0.6, lean: 0.38, lN: 0.66, lF: -0.55, crouch: 5, x: 5, sy: 0.88, sx: 1.08 }, "out"],
+      [0.14, { turn: 0.6, aN: 0.6, aF: 2.95, lean: -0.18, z: 5, plant: false, lN: 0.4, lF: -0.6, x: 8, sy: 1.08, sx: 0.94, head: -0.25 }, "snap"],
+      [0.22, { turn: 0.6, aN: 0.6, aF: 3.15, lean: -0.24, z: 6, plant: false, lN: 0.35, lF: -0.6, x: 9, head: -0.3 }, "back"],
+      [r(0.75), { turn: 0.8, aN: 1.2, aF: 1.2, lean: 0.15, crouch: 2.5, lN: 0.45, lF: -0.4, x: 7, sy: 0.94 }, "in"],
+      [r(1), { ...STANCE }, "io"],
+    ];
     case "point": return [
       [w(1), { ...STANCE }],
       [w(0.3), { aN: 2.9, aF: 0.4, lean: -0.15, lN: 0.35, lF: -0.38, head: -0.2, sy: 1.03 }, "out"],

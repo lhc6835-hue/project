@@ -188,7 +188,7 @@ export class Hero extends Actor {
     if (this.act && this.act.busy && WEAPON_BY_MOVE[this.act.def.name]?.swing) {
       const { pose, blades } = swingPose(WEAPON_BY_MOVE[this.act.def.name], this.act.def, this.act.t);
       this.blades = blades;
-      if (this.stage >= 3) { pose.z = 3; pose.plant = false; }
+      if (this.stage >= 3) { pose.z = Math.max(pose.z ?? 0, 3); pose.plant = false; }
       return [pose, "act"];
     }
     if (this.act && this.act.busy) {

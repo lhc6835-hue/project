@@ -12,9 +12,9 @@ export const SKILLS = {
   light: {
     1: {
       basic: {
-        name: "빛의 일섬", desc: "빛으로 된 칼날로 앞을 빠르게 벤다.", pose: "slash", windup: 0.1, recover: 0.26,
-        fx: [{ t: -0.1, id: "melee/sword-slash", opts: { radius: 42 } }],
-        hits: [{ t: 0.04, box: [0, 50, 17], dmg: 1.0, stop: 0.05, kb: 60 }],
+        name: "빛의 창격", desc: "빛의 창을 허리로 당겼다가 길게 찔러 넣는다. 사거리가 길다.", pose: "slash", windup: 0.12, recover: 0.26,
+        fx: [{ t: 0, id: "melee/thrust", opts: { reach: 50 }, dur: 0.5 }],
+        hits: [{ t: 0.01, box: [0, 66, 12], dmg: 1.0, stop: 0.06, kb: 70 }],
       },
       skills: [{
         name: "심판", desc: "가장 가까운 적에게 빛의 망치를 내리친다.", pose: "point", windup: 0.15, recover: 0.3, cd: 4,
@@ -25,9 +25,10 @@ export const SKILLS = {
     },
     2: {
       basic: {
-        name: "성광 회전", desc: "빛을 두르고 회전하며 주위를 벤다.", pose: "spin", windup: 0.1, recover: 0.34,
-        fx: [{ t: 0, id: "melee/spin-slash", opts: { radius: 46 } }],
-        hits: [{ t: 0.05, circ: [46, 0], dmg: 0.65, stop: 0.03 }, { t: 0.17, circ: [48, 0], dmg: 0.85, stop: 0.08, kb: 90 }],
+        name: "성광 연창", desc: "점점 빨라지는 세 번의 찌르기 뒤에 창대를 크게 휘둘러 앞을 쓸어낸다.", pose: "slash", windup: 0.1, recover: 0.42,
+        fx: [{ t: 0.13, id: "melee/thrust", opts: { reach: 56 }, dur: 0.5 }, { t: 0.19, id: "melee/spear-sweep", dur: 0.6 }],
+        hits: [{ t: 0.01, box: [0, 64, 12], dmg: 0.32, stop: 0.025 }, { t: 0.075, box: [0, 66, 12], dmg: 0.34, stop: 0.025 }, { t: 0.135, box: [0, 70, 13], dmg: 0.42, stop: 0.05, kb: 40 }, { t: 0.25, box: [-6, 56, 24], dmg: 0.7, stop: 0.08, kb: 110 }],
+        cam: [{ t: 0.25, shake: 1.8 }],
       },
       skills: [{
         name: "치유의 고리", desc: "빛의 고리를 퍼뜨려 적을 태우고 체력을 회복한다.", pose: "raise", windup: 0.2, recover: 0.3, cd: 8,
@@ -43,10 +44,12 @@ export const SKILLS = {
     },
     3: {
       basic: {
-        name: "천상의 검", desc: "두 팔로 빛의 대검을 내려찍고 깃털을 흩뿌린다.", pose: "cleave", windup: 0.28, recover: 0.42,
-        fx: [{ t: -0.28, id: "melee/heavy-cleave", dur: 0.9 }, { t: 0.02, id: "holy/feather-burst", dx: 40, dy: -16, dur: 1.4 }],
-        hits: [{ t: 0.0, box: [0, 74, 24], dmg: 1.45, stop: 0.1, kb: 130 }, { t: 0.06, circ: [34, 40], dmg: 0.8 }],
-        cam: [{ t: 0, shake: 2 }],
+        name: "천상의 창", desc: "빛을 끌어모아 창끝에 담았다가, 섬광처럼 앞으로 돌진하며 길을 꿰뚫는다.", pose: "dash", windup: 0.3, recover: 0.45,
+        dash: { t0: 0, t1: 0.1, dist: 48 }, ghost: true,
+        fx: [{ t: 0.02, id: "melee/thrust", opts: { reach: 70 }, dur: 0.5 }],
+        ticks: [{ t0: 0, t1: 0.1, every: 0.025, box: [-40, 40, 18], dmg: 1.1, once: true, stop: 0.05, kb: 60 }],
+        hits: [{ t: 0.11, box: [0, 74, 14], dmg: 0.6, stop: 0.1, kb: 140 }],
+        cam: [{ t: 0, shake: 2.5, flash: 0.08 }],
       },
       skills: [{
         name: "빛의 기둥", desc: "하늘에서 거대한 빛의 기둥이 떨어진다.", pose: "raise", windup: 0.2, recover: 0.4, cd: 6,
@@ -70,9 +73,9 @@ export const SKILLS = {
   dark: {
     1: {
       basic: {
-        name: "그림자 할퀴기", desc: "그림자 발톱으로 앞을 세 번 할퀸다.", pose: "claw", windup: 0.12, recover: 0.3,
-        fx: [{ t: 0, id: "melee/claw-swipe" }],
-        hits: [{ t: 0.04, box: [2, 46, 16], dmg: 0.42, stop: 0.03 }, { t: 0.08, box: [2, 46, 16], dmg: 0.42, stop: 0.03 }, { t: 0.12, box: [2, 48, 18], dmg: 0.6, stop: 0.07, kb: 60 }],
+        name: "그림자 낫", desc: "그림자 낫으로 앞을 걸어 베고, 곧바로 반대로 당겨 한 번 더 벤다.", pose: "slash", windup: 0.1, recover: 0.3,
+        fx: [{ t: 0.0, id: "melee/scythe-reap", dur: 0.6, opts: { size: 0.7 } }],
+        hits: [{ t: 0.04, box: [0, 44, 16], dmg: 0.55, stop: 0.04, kb: 20 }, { t: 0.17, box: [-8, 46, 18], dmg: 0.65, stop: 0.07, kb: -40 }],
       },
       skills: [{
         name: "흡혈", desc: "앞의 적에게서 생명력을 빨아들인다.", pose: "cast", windup: 0.15, recover: 0.4, cd: 5,
@@ -83,9 +86,10 @@ export const SKILLS = {
     },
     2: {
       basic: {
-        name: "망령의 낫", desc: "그림자 낫을 크게 휘둘러 앞을 쓸어버린다.", pose: "slash", windup: 0.2, recover: 0.4,
-        fx: [{ t: -0.2, id: "melee/scythe-reap", dur: 1.2 }],
-        hits: [{ t: 0.14, box: [0, 70, 22], dmg: 1.4, stop: 0.1, kb: 100 }],
+        name: "망령의 낫", desc: "거대한 그림자 낫으로 앞을 쓸고, 그 기세 그대로 한 바퀴 돌며 주위를 벤다.", pose: "slash", windup: 0.2, recover: 0.44,
+        fx: [{ t: -0.08, id: "melee/scythe-reap", dur: 1.0 }],
+        hits: [{ t: 0.05, box: [0, 64, 22], dmg: 1.0, stop: 0.08, kb: 60 }, { t: 0.22, circ: [52, 0], dmg: 0.6, stop: 0.06, kb: 110 }],
+        cam: [{ t: 0.05, shake: 1.8 }],
       },
       skills: [{
         name: "속박의 손", desc: "땅에서 그림자 손이 솟아 적을 붙잡는다.", pose: "point", windup: 0.15, recover: 0.3, cd: 7,
@@ -98,9 +102,11 @@ export const SKILLS = {
     },
     3: {
       basic: {
-        name: "그림자 난무", desc: "보이지 않을 만큼 빠르게 그림자를 휘두른다.", pose: "flurry", windup: 0.1, recover: 0.42,
-        fx: [{ t: -0.1, id: "melee/dagger-flurry" }, { t: 0.05, id: "shadow/shadow-flames", dur: 0.7, follow: true }],
-        hits: [0.05, 0.105, 0.16, 0.215, 0.27, 0.325].map((t) => ({ t, box: [0, 50, 17], dmg: 0.27, stop: 0.012 })).concat([{ t: 0.42, box: [0, 54, 18], dmg: 0.6, stop: 0.08, kb: 90 }]),
+        name: "사신의 낫", desc: "뛰어올라 낫을 내리찍으며 그림자 초승달을 날려 보내고, 착지하며 다시 낮게 베어 넘긴다.", pose: "slash", windup: 0.3, recover: 0.5,
+        fx: [{ t: 0.2, id: "melee/scythe-reap", dur: 0.8 }],
+        hits: [{ t: 0.07, box: [0, 56, 22], dmg: 1.1, stop: 0.12, kb: 80 }, { t: 0.24, box: [-10, 60, 24], dmg: 0.8, stop: 0.08, kb: 120 }],
+        proj: [{ t: 0.07, style: "crescent", big: true, speed: 280, range: 190, r: 14, dmg: 0.8, pierce: true, z: 14, kb: 60, hitFx: "impacts/hit-spark" }],
+        cam: [{ t: 0.07, shake: 3, flash: 0.06 }],
       },
       skills: [{
         name: "저주의 인장", desc: "인장을 새겨 그 안의 적을 계속 갉아먹고 느리게 한다.", pose: "raise", windup: 0.2, recover: 0.35, cd: 7,
@@ -150,9 +156,10 @@ export const SKILLS = {
   fire: {
     1: {
       basic: {
-        name: "불꽃 할퀴기", desc: "앞쪽을 불꽃 발톱으로 세 번 할퀸다.", pose: "claw", windup: 0.13, recover: 0.3,
-        fx: [{ t: 0, id: "melee/claw-swipe", dx: 0 }],
-        hits: [{ t: 0.04, box: [2, 46, 16], dmg: 0.4, stop: 0.03 }, { t: 0.08, box: [2, 46, 16], dmg: 0.4, stop: 0.03 }, { t: 0.12, box: [2, 48, 18], dmg: 0.55, stop: 0.07, kb: 60, st: { burn: 1.5 } }],
+        name: "화염 연권", desc: "불붙은 주먹으로 잽, 스트레이트를 꽂고 앞차기로 마무리한다.", pose: "jab3", windup: 0.08, recover: 0.3,
+        fx: [{ t: 0, id: "impacts/hit-spark", dx: 22, dy: -14 }, { t: 0.08, id: "impacts/hit-spark", dx: 25, dy: -14 }, { t: 0.17, id: "impacts/blunt-hit", dx: 30, dy: -6, dur: 0.45 }],
+        hits: [{ t: 0.0, box: [2, 36, 15], dmg: 0.36, stop: 0.03, kb: 15 }, { t: 0.08, box: [2, 40, 15], dmg: 0.4, stop: 0.04, kb: 20 }, { t: 0.17, box: [4, 46, 17], dmg: 0.62, stop: 0.08, kb: 90, st: { burn: 1.5 } }],
+        cam: [{ t: 0.17, shake: 1.6 }],
       },
       skills: [{
         name: "불씨탄", desc: "짧은 사거리의 불덩이를 던져 작게 폭발시킨다.", pose: "throw", windup: 0.18, recover: 0.25, cd: 3.5,
@@ -161,9 +168,10 @@ export const SKILLS = {
     },
     2: {
       basic: {
-        name: "화염 회전베기", desc: "몸을 돌려 주위를 둥글게 불로 벤다.", pose: "spin", windup: 0.12, recover: 0.36,
-        fx: [{ t: 0, id: "melee/spin-slash", opts: { radius: 44 } }],
-        hits: [{ t: 0.05, circ: [44, 0], dmg: 0.6, stop: 0.03 }, { t: 0.17, circ: [46, 0], dmg: 0.8, stop: 0.09, kb: 90, st: { burn: 2 } }],
+        name: "화염 선풍각", desc: "뛰어올라 몸을 회전시키며 불타는 발로 주위를 두 번 걷어찬다.", pose: "whirlkick", windup: 0.14, recover: 0.4,
+        fx: [{ t: 0, id: "melee/spin-slash", opts: { radius: 42 } }, { t: 0.15, id: "fire/fire-ring", opts: { reach: 50 }, dur: 0.5 }],
+        hits: [{ t: 0.06, circ: [42, 0], dmg: 0.6, stop: 0.04 }, { t: 0.19, circ: [46, 0], dmg: 0.85, stop: 0.09, kb: 110, st: { burn: 2 } }],
+        cam: [{ t: 0.19, shake: 2 }],
       },
       skills: [{
         name: "화염 고리", desc: "발밑에서 불길이 고리처럼 퍼져 나간다.", pose: "slam", windup: 0.3, recover: 0.4, cd: 6,
@@ -178,10 +186,11 @@ export const SKILLS = {
     },
     3: {
       basic: {
-        name: "업화 강타", desc: "두 팔로 내려찍어 앞을 불바다로 만든다.", pose: "cleave", windup: 0.32, recover: 0.5,
-        fx: [{ t: -0.32, id: "melee/heavy-cleave", dur: 0.9 }, { t: 0.02, id: "explosions/small-explosion", dx: 44, opts: { size: 0.8 }, dur: 0.7 }],
-        hits: [{ t: 0.0, box: [0, 72, 24], dmg: 1.4, stop: 0.12, kb: 140, st: { burn: 3 } }, { t: 0.08, circ: [30, 44], dmg: 0.8 }],
-        cam: [{ t: 0, shake: 3 }],
+        name: "업화 승룡권", desc: "몸을 낮췄다가 튀어 나가며 불꽃을 두른 주먹으로 솟구쳐 올려친다.", pose: "shoryu", windup: 0.24, recover: 0.5,
+        dash: { t0: -0.04, t1: 0.06, dist: 28 },
+        fx: [{ t: 0.02, id: "explosions/small-explosion", dx: 16, dy: -14, opts: { size: 0.7 }, dur: 0.6 }, { t: 0.34, id: "fire/fire-ring", opts: { reach: 40 }, dur: 0.5 }],
+        hits: [{ t: 0.0, box: [-6, 44, 20], dmg: 1.2, stop: 0.12, kb: 70, up: 120, st: { burn: 3 } }, { t: 0.1, circ: [32, 14], dmg: 0.7, kb: 80, st: { burn: 2 } }],
+        cam: [{ t: 0, shake: 3.2 }],
       },
       skills: [{
         name: "불기둥", desc: "앞쪽 땅이 갈라지며 거대한 불기둥이 솟는다.", pose: "raise", windup: 0.2, recover: 0.4, cd: 6,
@@ -261,9 +270,9 @@ export const SKILLS = {
   wind: {
     1: {
       basic: {
-        name: "바람 칼날", desc: "날카로운 바람으로 앞을 빠르게 벤다.", pose: "slash", windup: 0.1, recover: 0.22,
-        fx: [{ t: -0.1, id: "melee/sword-slash", opts: { radius: 40 } }],
-        hits: [{ t: 0.04, box: [0, 50, 17], dmg: 0.95, stop: 0.05, kb: 50 }],
+        name: "바람 차크람", desc: "바람의 차크람을 던진다. 차크람은 적을 베며 날아갔다가 다시 손으로 돌아오며 한 번 더 벤다.", pose: "chuck", windup: 0.14, recover: 0.24,
+        proj: [{ t: 0, style: "chakram", boomerang: true, pierce: true, z: 16, tier: 1, speed: 330, range: 105, r: 7, dmg: 0.62, backK: 0.75, kb: 30, life: 2.2, hitFx: "impacts/hit-spark" }],
+        cam: [{ t: 0, shake: 0.8 }],
       },
       skills: [{
         name: "질풍 돌진", desc: "바람처럼 앞으로 돌진하며 지나는 적을 벤다.", pose: "dash", windup: 0.1, recover: 0.2, cd: 4,
@@ -274,9 +283,10 @@ export const SKILLS = {
     },
     2: {
       basic: {
-        name: "난도질", desc: "눈에 보이지 않을 만큼 빠르게 연속으로 벤다.", pose: "flurry", windup: 0.1, recover: 0.42,
-        fx: [{ t: -0.1, id: "melee/dagger-flurry" }],
-        hits: [0.05, 0.105, 0.16, 0.215, 0.27, 0.325].map((t) => ({ t, box: [0, 48, 16], dmg: 0.24, stop: 0.012 })).concat([{ t: 0.42, box: [0, 52, 18], dmg: 0.5, stop: 0.08, kb: 90 }]),
+        name: "쌍풍 차크람", desc: "두 손의 차크람을 연달아 던진다. 위아래로 휘어 날아갔다가 돌아오며, 오가는 길의 적을 모두 벤다.", pose: "chuck2", windup: 0.16, recover: 0.3,
+        proj: [{ t: 0, style: "chakram", boomerang: true, pierce: true, z: 16, tier: 2, speed: 350, range: 120, r: 7, dmg: 0.5, curve: -1.6, spread: 0.32, backK: 0.8, kb: 30, life: 2.4, hitFx: "impacts/hit-spark" },
+          { t: 0.06, style: "chakram", boomerang: true, pierce: true, z: 16, tier: 2, speed: 350, range: 120, r: 7, dmg: 0.5, curve: 1.6, spread: -0.32, backK: 0.8, kb: 30, life: 2.4, hitFx: "impacts/hit-spark" }],
+        cam: [{ t: 0, shake: 0.8 }, { t: 0.06, shake: 1.2 }],
       },
       skills: [{
         name: "회오리", desc: "적을 휘감아 끌고 가는 회오리바람을 보낸다.", pose: "cast", windup: 0.2, recover: 0.3, cd: 7,
@@ -288,9 +298,9 @@ export const SKILLS = {
     },
     3: {
       basic: {
-        name: "폭풍 회전", desc: "번개를 두르고 돌며 주위를 벤다.", pose: "spin", windup: 0.1, recover: 0.36,
-        fx: [{ t: 0, id: "melee/spin-slash", opts: { radius: 46 } }, { t: 0.05, id: "lightning/zap-hit", ramp: "storm" }],
-        hits: [{ t: 0.05, circ: [46, 0], dmg: 0.75, stop: 0.03 }, { t: 0.17, circ: [48, 0], dmg: 0.95, stop: 0.08, kb: 90, st: { stun: 0.2 } }],
+        name: "폭풍 차크람", desc: "번개를 두른 거대한 차크람을 내리꽂듯 던진다. 멀리서 잠시 맴돌며 주위를 계속 베고, 돌아오는 길에도 벤다.", pose: "chuck3", windup: 0.3, recover: 0.36,
+        proj: [{ t: 0, style: "chakram", boomerang: true, pierce: true, z: 16, tier: 3, speed: 300, range: 120, r: 13, dmg: 1.0, hang: 0.45, hangK: 0.3, backK: 0.7, kb: 60, life: 3, hitFx: "lightning/zap-hit", ramp: "storm", st: { stun: 0.15 } }],
+        cam: [{ t: 0, shake: 2.5 }],
       },
       skills: [{
         name: "낙뢰", desc: "가까운 적 셋에게 벼락을 떨어뜨린다.", pose: "raise", windup: 0.2, recover: 0.4, cd: 6,
@@ -312,10 +322,10 @@ export const SKILLS = {
   earth: {
     1: {
       basic: {
-        name: "바위 주먹", desc: "돌처럼 단단한 주먹으로 올려친다.", pose: "uppercut", windup: 0.16, recover: 0.36,
-        fx: [{ t: -0.16, id: "melee/uppercut" }, { t: 0.08, id: "impacts/blunt-hit", dx: 30, dy: -4, dur: 0.5 }],
-        hits: [{ t: 0.076, box: [0, 44, 18], dmg: 1.25, stop: 0.1, kb: 110, up: 60 }],
-        cam: [{ t: 0.08, shake: 2 }],
+        name: "바위 주먹", desc: "돌 건틀릿으로 잽을 넣고, 반대 주먹을 땅에서부터 끌어올려 올려친다.", pose: "onetwo", windup: 0.1, recover: 0.4,
+        fx: [{ t: 0.14, id: "melee/uppercut" }, { t: 0.15, id: "impacts/blunt-hit", dx: 28, dy: -8, dur: 0.5 }],
+        hits: [{ t: 0.0, box: [0, 38, 16], dmg: 0.45, stop: 0.04, kb: 20 }, { t: 0.14, box: [0, 44, 18], dmg: 1.05, stop: 0.11, kb: 110, up: 70 }],
+        cam: [{ t: 0.14, shake: 2.2 }],
       },
       skills: [{
         name: "돌 던지기", desc: "커다란 돌을 던져 떨어진 곳을 부순다.", pose: "throw", windup: 0.22, recover: 0.3, cd: 4,
@@ -326,10 +336,10 @@ export const SKILLS = {
     },
     2: {
       basic: {
-        name: "대지 망치", desc: "두 팔을 모아 땅을 내려찍는다.", pose: "cleave", windup: 0.26, recover: 0.44,
-        fx: [{ t: -0.26, id: "melee/hammer-smash", ramp: "stone", dur: 0.9 }],
-        hits: [{ t: 0.15, box: [6, 66, 22], dmg: 1.7, stop: 0.12, kb: 120, st: { stun: 0.3 } }],
-        cam: [{ t: 0.15, shake: 3 }],
+        name: "대지 망치", desc: "돌 망치를 끌어올렸다가 뛰어오르며 땅에 내리꽂는다. 앞의 땅에서 바위 가시가 솟는다.", pose: "cleave", windup: 0.3, recover: 0.46,
+        fx: [{ t: 0.06, id: "impacts/ground-slam", dx: 30, opts: { reach: 50 }, dur: 0.5 }, { t: 0.12, id: "nature/earth-spike", dx: 52, dur: 0.6 }],
+        hits: [{ t: 0.06, box: [6, 60, 22], dmg: 1.5, stop: 0.13, kb: 120, st: { stun: 0.3 } }, { t: 0.14, circ: [20, 54], dmg: 0.6, up: 60 }],
+        cam: [{ t: 0.06, shake: 3.5 }],
       },
       skills: [{
         name: "가시 솟음", desc: "앞쪽 땅에서 돌가시가 솟아 적을 띄운다.", pose: "stomp", windup: 0.2, recover: 0.3, cd: 5,
@@ -344,10 +354,11 @@ export const SKILLS = {
     },
     3: {
       basic: {
-        name: "지진 내려찍기", desc: "땅을 내려쳐 충격파로 주위를 날려버린다.", pose: "slam", windup: 0.3, recover: 0.46,
-        fx: [{ t: 0, id: "impacts/ground-slam", opts: { reach: 70 }, dur: 0.55 }],
-        hits: [{ t: 0.0, circ: [40, 6], dmg: 1.5, stop: 0.12, kb: 160, up: 40 }, { t: 0.12, circ: [66, 0], dmg: 0.8, kb: 100 }],
-        cam: [{ t: 0, shake: 4 }],
+        name: "거암 강타", desc: "크게 뛰어올라 거대한 바위 망치를 온몸으로 내리찍는다. 충격파가 주위를 날리고 바위 가시가 줄지어 솟는다.", pose: "slam", windup: 0.42, recover: 0.5,
+        dash: { t0: -0.3, t1: -0.05, dist: 22 },
+        fx: [{ t: 0.05, id: "impacts/ground-slam", dx: 24, opts: { reach: 60 }, dur: 0.5 }, { t: 0.15, id: "nature/earth-spike", dx: 64, dur: 0.55 }],
+        hits: [{ t: 0.05, circ: [46, 24], dmg: 1.7, stop: 0.15, kb: 170, up: 50, st: { stun: 0.35 } }, { t: 0.12, circ: [22, 46], dmg: 0.6, up: 80 }, { t: 0.19, circ: [22, 74], dmg: 0.6, up: 80 }],
+        cam: [{ t: 0.05, shake: 5, flash: 0.08 }],
       },
       skills: [{
         name: "가시 지대", desc: "앞으로 가시덤불이 줄지어 솟는다.", pose: "stomp", windup: 0.2, recover: 0.35, cd: 6,

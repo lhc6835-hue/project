@@ -236,12 +236,14 @@ export class Projectile {
   }
   update(dt, w) {
     this.t += dt;
+    if (this.boomerang && this.steer(dt, w)) return;
     const step = Math.hypot(this.vx, this.vy) * dt;
     this.x += this.vx * dt; this.y += this.vy * dt; this.travelled += step;
     if (this.fxRef) { this.fxRef.x = this.x; this.fxRef.y = this.y; this.fxRef.z = this.z; }
     const A = w.arena;
     const out = this.x < A.x0 - 20 || this.x > A.x1 + 20 || this.y < A.y0 - 14 || this.y > A.y1 + 14;
-    if (this.travelled >= this.range || this.t >= this.life || out) return this.end(w, false);
+    if (this.boomerang) { if (out && this.phase === 0) { this.phase = 2; this.hitSet.clear(); } if (this.t >= this.life) return this.end(w, false); }
+    else if (this.travelled >= this.range || this.t >= this.life || out) return this.end(w, false);
     const targets = this.team === 0 ? w.enemies : [w.hero].filter((h) => h && !h.dead);
     if (this.pull) for (const e of targets) {
       const dx = this.x - e.x, dy = this.y - e.y, d = Math.hypot(dx, dy * DEPTH_K);
@@ -260,13 +262,47 @@ export class Projectile {
       if (this.hitSet.has(e)) continue;
       if (Math.hypot(e.x - this.x, (e.y - this.y) * DEPTH_K) <= this.r + e.r && Math.abs((e.height ?? 30) * 0.5 - this.z) < 30) {
         this.hitSet.add(e);
-        w.hit(this.src, e, { dmg: this.dmg * (this.src.stats?.atk ?? 1), el: this.el, kb: this.kb ?? 60, st: this.st, stage: this.stage, fxRamp: this.ramp, from: [this.x - this.vx * 0.1, this.y] });
+        const dk = this.boomerang ? [1, this.hangK ?? 0.35, this.backK ?? 0.7][this.phase] : 1;
+        w.hit(this.src, e, { dmg: this.dmg * dk * (this.src.stats?.atk ?? 1), el: this.el, kb: (this.kb ?? 60) * (this.phase === 1 ? 0.2 : 1), st: this.st, stage: this.stage, fxRamp: this.ramp, from: [this.x - this.vx * 0.1, this.y] });
         if (!this.pierce) return this.end(w, true);
         // a piercing shot bursts on everything it passes through
         if (this.hitFx) w.fx(this.hitFx, { x: e.x, y: e.y + 1, ramp: this.ramp, light: this.light, flip: this.vx < 0 });
         if (this.hitR) for (const o of targets) if (o !== e && !this.hitSet.has(o) && Math.hypot(o.x - e.x, (o.y - e.y) * DEPTH_K) <= this.hitR + o.r) w.hit(this.src, o, { dmg: this.hitDmg * (this.src.stats?.atk ?? 1), el: this.el, kb: 60, st: this.st, stage: this.stage, fxRamp: this.ramp, from: [e.x, e.y] });
       }
     }
+  }
+  /**
+   * A thrown blade that comes back: it flies out slowing and curving, may hang spinning at the far point
+   * (hitting again every tenth of a second), then homes back to the thrower and is caught. Each leg of the
+   * trip can hit the same enemy once. Returns true when it has been caught.
+   */
+  steer(dt, w) {
+    const s = this.src;
+    if (this.phase === undefined) { this.phase = 0; this.sp0 = this.speed; this.spinV = 1; }
+    if (this.phase === 0) {
+      const k = Math.min(1, this.travelled / this.range), sp = this.sp0 * (1 - 0.8 * k * k) + 30;
+      const a = Math.atan2(this.vy / 0.55, this.vx) + (this.curve ?? 0) * dt * (this.vx < 0 ? -1 : 1);
+      this.vx = Math.cos(a) * sp; this.vy = Math.sin(a) * sp * 0.55;
+      if (k >= 1) { this.phase = this.hang ? 1 : 2; this.hangT = this.hang ?? 0; this.reHit = 0; this.hitSet.clear(); }
+    } else if (this.phase === 1) {
+      this.vx *= Math.pow(0.02, dt); this.vy *= Math.pow(0.02, dt); this.hangT -= dt; this.reHit -= dt; this.spinV = 1.6;
+      if (this.reHit <= 0) { this.reHit = 0.1; this.hitSet.clear(); }
+      if (this.hangT <= 0) { this.phase = 2; this.hitSet.clear(); this.spinV = 1; }
+    } else {
+      if (!s || s.dead) return this.end(w, false), true;
+      const dx = s.x - this.x, dy = s.y - this.y, d = Math.hypot(dx, dy) || 1;
+      const sp = Math.min(this.sp0 * 1.3, Math.hypot(this.vx, this.vy) + 1100 * dt), j = Math.min(1, dt * 12);
+      this.vx += ((dx / d) * sp - this.vx) * j; this.vy += ((dy / d) * sp - this.vy) * j;
+      this.z += ((s.z ?? 0) + 16 - this.z) * Math.min(1, dt * 8);
+      if (d < 9 + sp * dt) {
+        // caught: a little flick in the hand and a puff of the element
+        s.anim?.push({ sx: 0.06, sy: -0.04, aN: 0.5, lean: -0.08 });
+        w.fx("impacts/hit-spark", { x: s.x + (s.flip ? -6 : 6), y: s.y + 0.5, z: 16, ramp: this.ramp, light: this.light, opts: { size: 0.5 } });
+        this.dead = true; if (this.fxRef) this.fxRef.inst.stop();
+        return true;
+      }
+    }
+    return false;
   }
   end(w, hitSomething) {
     this.dead = true;
@@ -283,6 +319,8 @@ export class Projectile {
     }
   }
   draw(p) {
+    if (this.style === "chakram") return this.drawChakram(p);
+    if (this.style === "crescent") return this.drawCrescent(p);
     if (this.style !== "waterArrow") return;
     // an arrow of running water: a bright shaft and head along its flight, streamers and droplets behind
     p.reset();
@@ -307,4 +345,60 @@ export class Projectile {
     for (let j = -5; j <= 5; j++) for (let i = -5; i <= 5; i++) { const d = i * i + j * j; if (d < 25) p.add(Math.round(x + i), Math.round(y + j), R[n - 2], 0.15 * (1 - d / 25)); }
   }
 
+
+  /** A spinning ring of wind with hooked blades, seen at a tilt; ghost rings smear behind it. */
+  drawChakram(p) {
+    p.reset();
+    const R = (this.ramp ?? ["#0c3a32", "#1f7a62", "#4fd0a0", "#b8ffe0", "#ffffff"]).map((c) => (typeof c === "number" ? c : hex(c))), n = R.length;
+    const tier = this.tier ?? 1, rr = [0, 6, 7, 10][tier], x = this.x, y = this.y - this.z, TILT = 0.55;
+    this.spin = (this.spin ?? 0) + (this.spinV ?? 1) * 0.55;
+    this.tr = this.tr ?? []; this.tr.unshift([x, y]); if (this.tr.length > 4) this.tr.pop();
+    // a smear of wind behind it: the rim swept along the last few frames of its path
+    for (let i = 1; i < this.tr.length; i++) {
+      const [ax, ay] = this.tr[i - 1], [bx, by] = this.tr[i], steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 2));
+      for (let s = 0; s < steps; s++) {
+        const u = s / steps, gx = ax + (bx - ax) * u, gy = ay + (by - ay) * u, k = 1 - (i - 1 + u) / (this.tr.length - 1);
+        for (const sg of [-1, 1]) p.blendPx(Math.round(gx), Math.round(gy + sg * rr * TILT), R[n - 2], 0.5 * k);
+        p.blendPx(Math.round(gx), Math.round(gy), R[n - 3], 0.25 * k);
+      }
+    }
+    // wind streaks curling off the rim
+    for (let i = 0; i < 2 + tier; i++) { const a0 = this.spin * 0.7 + i * 2.2; for (let s = 0; s < 6; s++) { const a = a0 - s * 0.22, r2 = rr + 2 + s * 0.6; p.put(Math.round(x + Math.cos(a) * r2), Math.round(y + Math.sin(a) * r2 * TILT), R[n - 1], 0.7 * (1 - s / 6)); } }
+    // the ring, lit from the top
+    for (let m = 0; m < 28; m++) {
+      const a = m / 28 * Math.PI * 2, cx = x + Math.cos(a) * rr, cy = y + Math.sin(a) * rr * TILT, top = Math.sin(a) < 0;
+      p.put(Math.round(cx), Math.round(cy), top ? R[n - 1] : R[n - 3]);
+      if (tier >= 2) p.put(Math.round(x + Math.cos(a) * (rr - 1.2)), Math.round(y + Math.sin(a) * (rr - 1.2) * TILT), R[n - 2]);
+    }
+    // hooked blades sweeping round
+    const nb = tier === 3 ? 6 : 4;
+    for (let b = 0; b < nb; b++) {
+      const a0 = this.spin + b / nb * Math.PI * 2;
+      for (let s = 0; s <= 5 + tier; s++) { const u = s / (5 + tier), a = a0 + u * 0.75, r2 = rr + u * (2.5 + tier); p.put(Math.round(x + Math.cos(a) * r2), Math.round(y + Math.sin(a) * r2 * TILT), u > 0.6 ? R[n - 1] : R[n - 2]); }
+    }
+    p.put(Math.round(x), Math.round(y), R[n - 1]);
+    if (tier === 3) for (let i = 0; i < 2; i++) {
+      // the storm chakram crackles
+      let a = Math.random() * Math.PI * 2, cx = x + Math.cos(a) * rr, cy = y + Math.sin(a) * rr * TILT;
+      for (let s = 0; s < 5; s++) { a += (Math.random() - 0.5) * 1.4; cx += Math.cos(a) * 2; cy += Math.sin(a) * 1.4; p.put(Math.round(cx), Math.round(cy), hex("#fff8c0")); }
+    }
+    const G = rr + 5;
+    for (let j = -G; j <= G; j++) for (let i = -G; i <= G; i++) { const d = (i * i + j * j) / (G * G); if (d < 1) p.add(Math.round(x + i), Math.round(y + j), R[n - 2], 0.16 * (1 - d)); }
+  }
+
+  /** A crescent of shadow flying edge-first, wisps of dark peeling off its horns. */
+  drawCrescent(p) {
+    p.reset();
+    const R = (this.ramp ?? ["#120820", "#3a1a5c", "#7a3aa8", "#c88aff", "#f4e0ff"]).map((c) => (typeof c === "number" ? c : hex(c))), n = R.length;
+    const x = this.x, y = this.y - this.z, f = this.vx < 0 ? -1 : 1, grow = Math.min(1, this.t / 0.12), H = (this.big ? 20 : 14) * (0.5 + 0.5 * grow);
+    for (let s = -10; s <= 10; s++) {
+      const u = s / 10, bow = (1 - u * u) * H * 0.42, th = (1 - u * u) * 3.2 + 0.4;
+      for (let k = 0; k <= Math.ceil(th); k++) {
+        const X = Math.round(x + f * (bow - k * 0.9)), Y = Math.round(y + u * H);
+        p.put(X, Y, k === 0 ? R[n - 1] : k < th * 0.5 ? R[n - 2] : R[n - 3], 1 - k / (th + 2) * 0.5);
+      }
+      if (Math.abs(u) > 0.6 && Math.random() < 0.3) for (let q = 1; q < 6; q++) p.blendPx(Math.round(x + f * (bow - q * 2.2)), Math.round(y + u * H + Math.sin(this.t * 20 + q) * 1.5), R[2], 0.5 * (1 - q / 6));
+    }
+    for (let j = -H; j <= H; j++) for (let i = -8; i <= 8; i++) { const d = (i * i) / 64 + (j * j) / (H * H); if (d < 1) p.add(Math.round(x + f * 4 + i), Math.round(y + j), R[n - 2], 0.14 * (1 - d)); }
+  }
 }
