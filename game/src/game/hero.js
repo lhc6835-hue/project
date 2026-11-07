@@ -151,6 +151,8 @@ export class Hero extends Actor {
     for (const k in this.cd) this.cd[k] = Math.max(0, this.cd[k] - dt);
     for (const g of this.ghosts) g.t -= dt;
     this.ghosts = this.ghosts.filter((g) => g.t > 0);
+    for (const c of this.cracks ?? []) c.t += dt;
+    if (this.cracks) this.cracks = this.cracks.filter((c) => c.t < 0.75);
     if (this.stats.regen && !this.dead) this.heal(this.maxHp * this.stats.regen * dt);
     if (this.dead) return this.animate(dt);
     const inp = this.input ?? { x: 0, y: 0 };
@@ -303,6 +305,7 @@ export class Hero extends Actor {
     if (swung) { drawSwept(p, this, "front"); drawSwung(p, this, pose, this.weapon, this.weaponK ?? 0, this.t, "front"); }
     else if (!this.dead) drawWeapon(p, this, pose, this.weapon, this.weaponK ?? 0, this.t);
     p.reset();
+    if (this.cracks?.length) this.drawCracks(p);
     for (const t of this.traits) t.draw?.(this, p);
     const tr = this.ramps.main.map((c) => (typeof c === "number" ? c : hex(c)));
     this.trailF.draw(p, tr, this.glowC); this.trail.draw(p, tr, this.glowC);
@@ -310,6 +313,42 @@ export class Hero extends Actor {
   }
 
   /** Awakened spirits sit on the head as a crown of their element. */
+  /**
+   * Where the hammer met the floor, drawn right at the contact point: a white flash, cracks running out
+   * across the ground (flattened by the floor's perspective) and glowing with the element before they cool,
+   * a ring of dust rolling outward, and chips of stone thrown up that fall back.
+   */
+  drawCracks(p) {
+    p.reset();
+    const st = (this.ramps.stone ?? this.ramps.main).map((c) => (typeof c === "number" ? c : hex(c))), A = this.accent, n = st.length;
+    for (const c of this.cracks) {
+      const u = c.t / 0.75, k = c.big ? 1.35 : 1, x0 = c.x, y0 = c.y;
+      if (c.t < 0.1) { const r = (5 + 9 * c.t / 0.1) * k; for (let j = -r; j <= r; j++) for (let i = -r * 1.6; i <= r * 1.6; i++) { const d = (i * i) / (r * r * 2.56) + (j * j) / (r * r); if (d < 1) p.add(Math.round(x0 + i), Math.round(y0 - 1 + j * 0.6), hex("#fff2c0"), 0.9 * (1 - c.t / 0.1) * (1 - d)); } }
+      // the cracks: jagged, seeded so they keep their shape while they glow and cool
+      const grow = Math.min(1, c.t / 0.08);
+      for (let r = 0; r < 7; r++) {
+        let a = (r / 7) * Math.PI * 2 + c.seed, x = x0, y = y0, L = (12 + ((r * 37 + c.seed * 100) % 9)) * k * grow;
+        for (let s = 0; s < L; s++) {
+          a += Math.sin(s * 1.7 + r * 3 + c.seed * 9) * 0.35;
+          x += Math.cos(a); y += Math.sin(a) * 0.32;
+          const hot = c.t < 0.35 && s < L * (1 - c.t * 1.5);
+          p.put(Math.round(x), Math.round(y), hot ? A[4] : st[1], 1 - Math.max(0, u - 0.5) * 2);
+          if (hot) p.add(Math.round(x), Math.round(y), this.glowC, 0.4);
+        }
+      }
+      // dust rolling out along the floor
+      const R = (6 + 26 * Math.sqrt(u)) * k;
+      for (let m = 0; m < 30; m++) { const a = (m / 30) * Math.PI * 2, wob = 1 + Math.sin(m * 2.7 + c.seed * 5) * 0.15; p.blendPx(Math.round(x0 + Math.cos(a) * R * wob), Math.round(y0 + Math.sin(a) * R * 0.3 * wob - (Math.sin(a) < 0 ? 1 : 0)), st[n - 2], 0.55 * (1 - u)); }
+      // chips of stone thrown up
+      for (let i = 0; i < 9; i++) {
+        const vx = Math.cos(i * 2.1 + c.seed) * (30 + (i % 3) * 18) * k, vy = -(60 + (i * 23) % 50) * k, t = Math.min(c.t, 0.6);
+        const X = Math.round(x0 + vx * t), Y = Math.round(y0 + vy * t + 260 * t * t);
+        if (Y > y0 + 2) continue;
+        p.put(X, Y, i % 2 ? st[n - 1] : st[3]); if (i % 3 === 0) p.put(X + 1, Y, st[2]);
+      }
+    }
+  }
+
   drawCrown(p, pose, flip) {
     const [hx, hy] = anchor(pose, "headTop");
     const x = Math.round(this.x + (flip ? -1 : 1) * ((pose.x ?? 0) + hx)), y = Math.round(this.y - this.z + hy + (pose.y ?? 0) - (pose.z ?? 0));
